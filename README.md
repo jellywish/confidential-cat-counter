@@ -1,7 +1,7 @@
 # Confidential Cat Counter
 
 <p align="center">
-  <img src="./assets/catalyst.png" alt="Catalyst — mascot and icon for Confidential Cat Counter" width="360" />
+  <img src="./assets/catalyst.png" alt="Catalyst — mascot and icon for Confidential Cat Counter" width="256" />
   <br/>
   <sub><b>Catalyst</b> — the project mascot and icon, inspired by Pushkin’s learned cat.</sub>
 </p>
