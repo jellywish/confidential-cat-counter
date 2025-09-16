@@ -372,9 +372,8 @@ Any other relevant information.
 **DO NOT** open public issues for security vulnerabilities.
 
 Instead:
-1. Email security@[domain] with details
-2. Use [Security Advisory](https://github.com/[org]/confidential-cat-counter/security/advisories/new)
-3. Allow 90 days for coordinated disclosure
+1. Use [Security Advisory](https://github.com/[org]/confidential-cat-counter/security/advisories/new)
+2. Allow 90 days for coordinated disclosure
 
 ## Security Considerations
 
