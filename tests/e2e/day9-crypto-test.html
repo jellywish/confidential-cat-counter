@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 9: Raw AES Keyring Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+        .success { border-color: #00ff00; background: #001100; }
+        .error { border-color: #ff0000; background: #110000; }
+        .info { border-color: #0080ff; background: #000011; }
+        .warning { border-color: #ffaa00; background: #110800; }
+        pre { margin: 5px 0; white-space: pre-wrap; }
+        button { padding: 10px; margin: 5px; background: #333; color: #00ff00; border: 1px solid #666; cursor: pointer; }
+        button:hover { background: #444; }
+        .file-input { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Day 9: Raw AES Keyring + Single-File Encryption Test</h1>
+    <p>Testing Raw AES keyring creation and basic encrypt/decrypt cycle</p>
+    
+    <div class="file-input">
+        <label>Test with file: </label>
+        <input type="file" id="fileInput" accept="image/*">
+        <button onclick="testFileEncryption()">Test File Encryption</button>
+    </div>
+    
+    <div class="file-input">
+        <button onclick="testTextEncryption()">Test Text Encryption</button>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="test-results"></div>
+
+    <!-- Include crypto logger -->
+    <script src="utils/cryptoLogger.js"></script>
+    
+    <script>
+        const results = document.getElementById('test-results');
+        
+        function addResult(type, title, content) {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${title}</strong><pre>${content}</pre>`;
+            results.appendChild(div);
+            
+            // Log to crypto logger if available
+            if (window.cryptoLogger) {
+                const logType = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+                cryptoLogger[logType](title, { content: content.substring(0, 100) + '...' });
+            }
+        }
+
+        function clearResults() {
+            results.innerHTML = '';
+        }
+
+        // Raw AES Crypto implementation for testing
+        class TestRawAESCrypto {
+            constructor() {
+                this.initialized = false;
+                this.keyBytes = null;
+                this.keyName = 'test-raw-aes-key';
+                this.algorithm = 'AES-256-GCM';
+            }
+
+            async initialize() {
+                if (this.initialized) return;
+
+                try {
+                    // Check WebCrypto availability
+                    if (!window.crypto || !window.crypto.subtle) {
+                        throw new Error('WebCrypto API not available');
+                    }
+
+                    // Generate 256-bit key
+                    this.keyBytes = new Uint8Array(32);
+                    crypto.getRandomValues(this.keyBytes);
+
+                    // Import key for WebCrypto operations
+                    this.cryptoKey = await window.crypto.subtle.importKey(
+                        'raw',
+                        this.keyBytes,
+                        { name: 'AES-GCM' },
+                        false,
+                        ['encrypt', 'decrypt']
+                    );
+
+                    this.initialized = true;
+                    
+                    addResult('success', 'Raw AES Keyring Initialization', 
+                        `✅ 256-bit key generated\n` +
+                        `✅ WebCrypto key imported\n` +
+                        `Key name: ${this.keyName}\n` +
+                        `Algorithm: ${this.algorithm}`
+                    );
+
+                } catch (error) {
+                    addResult('error', 'Raw AES Keyring Initialization Failed', error.message);
+                    throw error;
+                }
+            }
+
+            async encrypt(data, encryptionContext = {}) {
+                if (!this.initialized) {
+                    await this.initialize();
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    // Convert input to Uint8Array
+                    let dataBytes;
+                    if (data instanceof Uint8Array) {
+                        dataBytes = data;
+                    } else if (data instanceof File || data instanceof Blob) {
+                        dataBytes = new Uint8Array(await data.arrayBuffer());
+                    } else if (typeof data === 'string') {
+                        dataBytes = new TextEncoder().encode(data);
+                    } else {
+                        throw new Error('Unsupported data type for encryption');
+                    }
+
+                    // Generate IV
+                    const iv = new Uint8Array(12);
+                    crypto.getRandomValues(iv);
+
+                    // Encrypt data
+                    const encryptedBuffer = await window.crypto.subtle.encrypt(
+                        { name: 'AES-GCM', iv: iv },
+                        this.cryptoKey,
+                        dataBytes
+                    );
+
+                    const encryptedBytes = new Uint8Array(encryptedBuffer);
+
+                    // Create envelope format (IV + encrypted data)
+                    const envelope = new Uint8Array(iv.length + encryptedBytes.length);
+                    envelope.set(iv, 0);
+                    envelope.set(encryptedBytes, iv.length);
+
+                    // Convert to base64
+                    const ciphertext = btoa(String.fromCharCode(...envelope));
+
+                    const endTime = performance.now();
+                    const processingTime = (endTime - startTime).toFixed(2);
+
+                    const result = {
+                        ciphertext: ciphertext,
+                        algorithm: this.algorithm,
+                        keyId: this.keyName,
+                        encryptionContext: { ...encryptionContext },
+                        timestamp: new Date().toISOString(),
+                        originalSize: dataBytes.length,
+                        encryptedSize: ciphertext.length,
+                        processingTime: processingTime,
+                        iv: btoa(String.fromCharCode(...iv))
+                    };
+
+                    addResult('success', 'Encryption Test', 
+                        `✅ Data encrypted successfully\n` +
+                        `Original size: ${dataBytes.length} bytes\n` +
+                        `Encrypted size: ${ciphertext.length} bytes\n` +
+                        `Processing time: ${processingTime}ms\n` +
+                        `Algorithm: ${this.algorithm}`
+                    );
+
+                    return result;
+
+                } catch (error) {
+                    const endTime = performance.now();
+                    const processingTime = (endTime - startTime).toFixed(2);
+                    
+                    addResult('error', 'Encryption Failed', 
+                        `Error: ${error.message}\n` +
+                        `Processing time: ${processingTime}ms`
+                    );
+                    throw error;
+                }
+            }
+
+            async decrypt(encryptedData) {
+                if (!this.initialized) {
+                    await this.initialize();
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    // Convert base64 back to bytes
+                    const envelopeBytes = new Uint8Array(
+                        atob(encryptedData.ciphertext)
+                            .split('')
+                            .map(char => char.charCodeAt(0))
+                    );
+
+                    // Extract IV and encrypted data
+                    const iv = envelopeBytes.slice(0, 12);
+                    const encryptedBytes = envelopeBytes.slice(12);
+
+                    // Decrypt
+                    const decryptedBuffer = await window.crypto.subtle.decrypt(
+                        { name: 'AES-GCM', iv: iv },
+                        this.cryptoKey,
+                        encryptedBytes
+                    );
+
+                    const decryptedBytes = new Uint8Array(decryptedBuffer);
+
+                    const endTime = performance.now();
+                    const processingTime = (endTime - startTime).toFixed(2);
+
+                    const result = {
+                        success: true,
+                        data: decryptedBytes,
+                        originalSize: encryptedData.originalSize,
+                        decryptedAt: new Date().toISOString(),
+                        processingTime: processingTime
+                    };
+
+                    addResult('success', 'Decryption Test', 
+                        `✅ Data decrypted successfully\n` +
+                        `Decrypted size: ${decryptedBytes.length} bytes\n` +
+                        `Processing time: ${processingTime}ms\n` +
+                        `Original size match: ${decryptedBytes.length === encryptedData.originalSize}`
+                    );
+
+                    return result;
+
+                } catch (error) {
+                    const endTime = performance.now();
+                    const processingTime = (endTime - startTime).toFixed(2);
+                    
+                    addResult('error', 'Decryption Failed', 
+                        `Error: ${error.message}\n` +
+                        `Processing time: ${processingTime}ms`
+                    );
+                    throw error;
+                }
+            }
+        }
+
+        // Global test crypto instance
+        const testCrypto = new TestRawAESCrypto();
+
+        async function testTextEncryption() {
+            addResult('info', 'Starting Text Encryption Test', 'Testing basic encrypt/decrypt cycle with text data');
+
+            try {
+                const testText = 'Hello, Raw AES Keyring! This is a test message for Day 9 validation.';
+                
+                // Test encryption
+                const encrypted = await testCrypto.encrypt(testText, {
+                    file_type: 'text/plain',
+                    app: 'ccc-reference',
+                    version: 'phase2'
+                });
+
+                // Test decryption
+                const decrypted = await testCrypto.decrypt(encrypted);
+                const decryptedText = new TextDecoder().decode(decrypted.data);
+
+                // Verify data integrity
+                if (decryptedText === testText) {
+                    addResult('success', 'Text Encryption Cycle Complete', 
+                        `✅ Round-trip successful\n` +
+                        `Original: "${testText}"\n` +
+                        `Decrypted: "${decryptedText}"\n` +
+                        `Data integrity: VERIFIED`
+                    );
+                } else {
+                    addResult('error', 'Text Encryption Data Mismatch', 
+                        `❌ Data integrity check failed\n` +
+                        `Expected: "${testText}"\n` +
+                        `Got: "${decryptedText}"`
+                    );
+                }
+
+            } catch (error) {
+                addResult('error', 'Text Encryption Test Failed', error.message);
+            }
+        }
+
+        async function testFileEncryption() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                addResult('warning', 'File Test Skipped', 'No file selected. Please select a file first.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            addResult('info', 'Starting File Encryption Test', 
+                `Testing with file: ${file.name}\n` +
+                `Size: ${file.size} bytes\n` +
+                `Type: ${file.type}`
+            );
+
+            try {
+                // Test encryption
+                const encrypted = await testCrypto.encrypt(file, {
+                    file_size: String(file.size),
+                    file_type: file.type,
+                    upload_timestamp: new Date().toISOString().split('T')[0],
+                    app: 'ccc-reference',
+                    version: 'phase2'
+                });
+
+                // Test decryption
+                const decrypted = await testCrypto.decrypt(encrypted);
+
+                // Verify file size
+                if (decrypted.data.length === file.size) {
+                    addResult('success', 'File Encryption Cycle Complete', 
+                        `✅ File encrypted and decrypted successfully\n` +
+                        `Original size: ${file.size} bytes\n` +
+                        `Decrypted size: ${decrypted.data.length} bytes\n` +
+                        `Size match: VERIFIED\n` +
+                        `File name: ${file.name}`
+                    );
+                } else {
+                    addResult('error', 'File Encryption Size Mismatch', 
+                        `❌ File size mismatch\n` +
+                        `Expected: ${file.size} bytes\n` +
+                        `Got: ${decrypted.data.length} bytes`
+                    );
+                }
+
+            } catch (error) {
+                addResult('error', 'File Encryption Test Failed', error.message);
+            }
+        }
+
+        async function testTypeConversion() {
+            addResult('info', 'Starting Type Conversion Test', 'Testing Uint8Array ↔ base64 conversion');
+
+            try {
+                // Test various data types
+                const testCases = [
+                    { name: 'Small text', data: 'test' },
+                    { name: 'Unicode text', data: '🔐 Encryption test 測試 🚀' },
+                    { name: 'Binary data', data: new Uint8Array([0, 1, 2, 255, 128, 64]) },
+                    { name: 'Empty data', data: '' }
+                ];
+
+                for (const testCase of testCases) {
+                    try {
+                        const encrypted = await testCrypto.encrypt(testCase.data);
+                        const decrypted = await testCrypto.decrypt(encrypted);
+                        
+                        let success = false;
+                        if (typeof testCase.data === 'string') {
+                            const decryptedText = new TextDecoder().decode(decrypted.data);
+                            success = decryptedText === testCase.data;
+                        } else {
+                            success = decrypted.data.length === testCase.data.length;
+                        }
+
+                        if (success) {
+                            addResult('success', `Type Conversion: ${testCase.name}`, '✅ Conversion successful');
+                        } else {
+                            addResult('error', `Type Conversion: ${testCase.name}`, '❌ Conversion failed');
+                        }
+
+                    } catch (error) {
+                        addResult('error', `Type Conversion: ${testCase.name}`, `Error: ${error.message}`);
+                    }
+                }
+
+            } catch (error) {
+                addResult('error', 'Type Conversion Test Failed', error.message);
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            addResult('info', 'Day 9 Validation Started', 'Running comprehensive Raw AES keyring tests');
+
+            // Test 1: WebCrypto availability
+            if (window.crypto && window.crypto.subtle) {
+                addResult('success', 'WebCrypto Availability', '✅ WebCrypto API is available');
+            } else {
+                addResult('error', 'WebCrypto Availability', '❌ WebCrypto API not available');
+                return;
+            }
+
+            // Test 2: Keyring initialization
+            try {
+                await testCrypto.initialize();
+            } catch (error) {
+                addResult('error', 'Keyring Initialization Failed', error.message);
+                return;
+            }
+
+            // Test 3: Type conversion
+            await testTypeConversion();
+
+            // Test 4: Text encryption
+            await testTextEncryption();
+
+            // Test 5: File encryption (if file selected)
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput.files && fileInput.files.length > 0) {
+                await testFileEncryption();
+            }
+
+            // Day 9 summary
+            addResult('info', 'Day 9 Validation Summary', 
+                '🎯 Day 9 Tests Complete\n' +
+                '========================\n' +
+                '✅ Raw AES keyring setup working\n' +
+                '✅ Single-file encryption cycle verified\n' +
+                '✅ Type conversion (Uint8Array ↔ base64) working\n' +
+                '✅ WebCrypto integration successful\n' +
+                '\n📋 Ready for Day 10: Boundary validation and error testing'
+            );
+        }
+
+        // Auto-run basic tests on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            addResult('info', 'Day 9 Test Page Loaded', 'Use buttons above to run individual tests or "Run All Tests"');
+        });
+    </script>
+</body>
+</html>

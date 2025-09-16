@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+
+# Build artifacts
+dist/
+build/
+target/
+*.eif
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+signing-key.*
+!signing-key.pub
+
+# Legal and compliance documents
+docs/LEGAL_FRAMEWORK.md
+legal/
+compliance/
+canary.*
+transparency.*
+
+# Deployment sensitive
+terraform.tfstate*
+terraform.tfvars
+.terraform/
+deployment-config.*
+
+# Testing
+coverage/
+.pytest_cache/
+.coverage
+test-results/
+
+# Local development
+docker-compose.override.yml
+local-config.json
+dev-keys/
+
+# Runtime data (keep directories, ignore contents)
+data/uploads/*
+!data/uploads/.gitkeep
+data/results/*
+!data/results/.gitkeep
+src/web-client/uploads/*
+!src/web-client/uploads/.gitkeep
+src/ml-service/uploads/*
+!src/ml-service/uploads/.gitkeep
+src/ml-service/results/*
+!src/ml-service/results/.gitkeep
+
+# Other Research
+research/

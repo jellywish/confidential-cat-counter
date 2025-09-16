@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Confidential Cat Counter</title>
+    <link rel="stylesheet" href="/styles/crypto-drawer.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-bottom: 460px; /* Space for crypto drawer (400px + 60px margin) */
+            background: #f8fafc;
+            color: #334155;
+            line-height: 1.6;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+        }
+        
+        .header .subtitle {
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+        
+        .upload-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            padding: 3rem 2rem;
+            text-align: center;
+            border-radius: 8px;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+        
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-button, .process-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+            margin: 0.5rem;
+        }
+        
+        .upload-button:hover, .process-button:hover {
+            background: #2563eb;
+        }
+        
+        .upload-button:disabled, .process-button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+        
+        .results {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+        }
+        
+        .results.hidden {
+            display: none;
+        }
+        
+        .result-content {
+            font-size: 1.1rem;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status.queued {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status.processing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin: 1rem 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f4f6;
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #dc2626;
+            background: #fee2e2;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+        
+        .demo-info {
+            background: #eff6ff;
+            border: 1px solid #dbeafe;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 Confidential Cat Counter</h1>
+        <p class="subtitle">Privacy-Preserving ML Reference Architecture</p>
+        <div class="tagline">
+            <strong>🎯 Educational Demo:</strong> When you press "Process Image", the image will be encrypted in your
+            browser and transmitted to the Confidential Cat Counter backend, where it will be decrypted within a
+            confidential environment, analyzed, and a result will be returned to you. <em>Note:</em> This instance is
+            running locally on your device and is not confidential.
+        </div>
+    </div>
+    
+    <!-- Moved to bottom of content; no fixed positioning to avoid floating on varied screen heights -->
+    
+    <div class="upload-section">
+        <h2>📤 Upload Image</h2>
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="imageInput" class="file-input" accept="image/*">
+            <div id="uploadContent">
+                <p id="uploadPrompt" style="font-size: 1.2rem; margin-bottom: 1rem;">🖼️ Click here to select an image or drag & drop</p>
+                <p style="color: #64748b;">Supports: JPG, PNG, GIF (max 10MB)</p>
+                <!-- CRITICAL: DO NOT add onclick attribute - causes multiple file choosers -->
+                <!-- See docs/FILE_UPLOAD_BUTTON_ISSUE_RESOLUTION.md for details -->
+                <button type="button" class="upload-button" id="chooseImageBtn">
+                    Choose Image
+                </button>
+            </div>
+            <!-- Inline preview replaces prompt inside the upload box -->
+            <div id="filePreview" style="display: none; text-align: center; margin-top: 12px;">
+                <img id="previewImage" class="preview-image" alt="Preview">
+                <div>
+                    <p id="fileName"></p>
+                    <button class="process-button" id="processButton">
+                        🚀 Process Image
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="results" class="results hidden">
+        <h3>📊 Results</h3>
+        <div id="resultContent">
+            <div class="loading"></div> Processing your image...
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin: 24px 0;">
+        <button id="edgeCaseTestButton" style="background: #6366f1; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer;">
+            🧪 Run Edge Case Tests
+        </button>
+    </div>
+    
+    <script>
+        let selectedFile = null;
+        let currentJobId = null;
+        
+        // File input handling
+        const imageInput = document.getElementById('imageInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const filePreview = document.getElementById('filePreview');
+        const previewImage = document.getElementById('previewImage');
+        const fileName = document.getElementById('fileName');
+        
+        imageInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop handling
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                imageInput.files = files;
+                handleFileSelect();
+            }
+        });
+        
+        // CRITICAL: File input triggering logic - DO NOT MODIFY WITHOUT UNDERSTANDING FULL FLOW
+        // 
+        // Problem history: This has broken multiple times due to event handling conflicts
+        // 
+        // Requirements:
+        // 1. "Choose Image" button must work when clicked
+        // 2. Clicking anywhere else in upload area should also work  
+        // 3. Must not double-trigger file chooser
+        // 4. Must not trigger during page load
+        //
+        // Solution: Single event listener on upload area with proper target checking
+        
+        const chooseImageBtn = document.getElementById('chooseImageBtn');
+        
+        // Handle clicks on upload area - allows clicking anywhere to select file
+        uploadArea.addEventListener('click', (e) => {
+            // Avoid triggering file chooser when interacting with preview/process controls
+            const clickedInsidePreview = e.target.closest('#filePreview');
+            const isProcessButton = e.target.id === 'processButton';
+            if (clickedInsidePreview || isProcessButton) {
+                return; // Let the specific control handle the click
+            }
+            imageInput.click();
+        });
+        
+        // DO NOT add separate button click handler - it will cause double-triggering
+        // DO NOT add onclick attributes to HTML - they conflict with JS event handling
+        
+        async function handleFileSelect() {
+            const file = imageInput.files[0];
+            if (!file) return;
+            
+            // TOU validation before processing
+            try {
+                if (window.touEnforcement) {
+                    await window.touEnforcement.validateUpload(file);
+                }
+            } catch (error) {
+                alert(`Upload blocked: ${error.message}`);
+                imageInput.value = ''; // Clear the file input
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                fileName.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                filePreview.style.display = 'block';
+                document.getElementById('uploadPrompt').style.display = 'none';
+                document.getElementById('chooseImageBtn').textContent = 'Choose Another Image';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function uploadAndProcess() {
+            if (!selectedFile) {
+                alert('Please select an image first');
+                return;
+            }
+            
+            const processButton = document.getElementById('processButton');
+            processButton.disabled = true;
+            processButton.textContent = '⏳ Uploading...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                currentJobId = result.jobId;
+                
+                // Show results section and start polling
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.classList.remove('hidden');
+                
+                pollForResults(result.jobId);
+                
+            } catch (error) {
+                console.error('Upload failed:', error);
+                showError(`Upload failed: ${error.message}`);
+                processButton.disabled = false;
+                processButton.textContent = '🚀 Process Image';
+            }
+        }
+        
+        async function pollForResults(jobId) {
+            const resultContent = document.getElementById('resultContent');
+            
+            const pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/results/${jobId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch results');
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showResults(result);
+                    } else if (result.status === 'failed') {
+                        clearInterval(pollInterval);
+                        showError(`Processing failed: ${result.error || 'Unknown error'}`);
+                    } else {
+                        // Still processing
+                        updateStatus(result);
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    resultContent.innerHTML = `<div class="error">Error checking results: ${error.message}</div>`;
+                }
+            }, 2000); // Poll every 2 seconds
+            
+            // Timeout after 2 minutes
+            setTimeout(() => {
+                clearInterval(pollInterval);
+                if (currentJobId === jobId) {
+                    showError('Processing timeout - please try again');
+                }
+            }, 120000);
+        }
+        
+        function updateStatus(result) {
+            const resultContent = document.getElementById('resultContent');
+            const statusClass = result.status || 'processing';
+            
+            resultContent.innerHTML = `
+                <div style="text-align: center;">
+                    <div class="loading"></div>
+                    <p><span class="status ${statusClass}">${result.status}</span></p>
+                    <p>Job ID: <code>${result.id}</code></p>
+                    <small>Started: ${new Date(result.timestamp).toLocaleTimeString()}</small>
+                </div>
+            `;
+        }
+        
+        function showResults(result) {
+            const resultContent = document.getElementById('resultContent');
+            const processButton = document.getElementById('processButton');
+            
+            const cats = result.cats || 0;
+            const confidence = (typeof result.confidence === 'number' && !isNaN(result.confidence)) ? (result.confidence * 100).toFixed(1) : 'N/A';
+            const processingTime = result.processingTime || 'N/A';
+            const submittedFile = (typeof result.displayName === 'string') ? result.displayName : ((typeof result.filename === 'string') ? result.filename : (selectedFile?.name || 'unknown'));
+            
+            resultContent.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">
+                        🐱 <strong>${cats}</strong> cat${cats !== 1 ? 's' : ''} detected
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <span class="status completed">completed</span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #64748b;">
+                        <p>Image: <strong>${submittedFile}</strong></p>
+                        <p>Confidence: <strong>${confidence}%</strong></p>
+                        <p>Processing time: <strong>${processingTime}</strong></p>
+                        <p>Model: <strong>${result.model || 'yolov5s'}</strong></p>
+                        <p>Completed: <strong>${new Date(result.completedAt * 1000).toLocaleTimeString()}</strong></p>
+                    </div>
+                </div>
+            `;
+            
+            // Re-enable upload button
+            processButton.disabled = false;
+            processButton.textContent = '🚀 Process Another Image';
+        }
+        
+        function showError(message) {
+            const resultContent = document.getElementById('resultContent');
+            const processButton = document.getElementById('processButton');
+            
+            resultContent.innerHTML = `<div class="error">${message}</div>`;
+            
+            processButton.disabled = false;
+            processButton.textContent = '🚀 Try Again';
+        }
+        
+        // Check service health on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/health');
+                const health = await response.json();
+                console.log('Service health:', health);
+            } catch (error) {
+                console.error('Health check failed:', error);
+            }
+        });
+    </script>
+
+    <!-- Phase 2: Crypto Logging Infrastructure -->
+    <script type="module" src="/utils/cryptoLogger.js"></script>
+    <script type="module" src="/components/CryptoLogDrawer.js"></script>
+    <script type="module" src="/utils/mockCrypto.js"></script>
+    <script src="/utils/touEnforcement.js"></script>
+    <script src="/tests/test_crypto_boundaries.js"></script>
+    
+    <script>
+        // Initialize crypto logging with demo
+        window.addEventListener('load', () => {
+            // Wait a bit for crypto logger to initialize
+            setTimeout(() => {
+                if (window.cryptoLogger) {
+                    cryptoLogger.info('Phase 2 crypto logging initialized');
+                    cryptoLogger.info('Mock encryption mode active');
+                    cryptoLogger.info('Ready for image processing with crypto visibility');
+                }
+            }, 100);
+        });
+        
+        // Enhanced upload function with mock encryption
+        const originalUploadAndProcess = uploadAndProcess;
+        uploadAndProcess = async function() {
+            if (!selectedFile) {
+                alert('Please select an image first');
+                return;
+            }
+            
+            const processButton = document.getElementById('processButton');
+            processButton.disabled = true;
+            processButton.textContent = '🔐 Encrypting...';
+            
+            try {
+                // Phase 2: Mock encryption workflow
+                if (window.cryptoLogger) {
+                    cryptoLogger.info('Starting encrypted upload process', {
+                        fileName: selectedFile?.name,
+                        fileSize: selectedFile?.size,
+                        fileType: selectedFile?.type
+                    });
+                }
+                
+                // Initialize mock crypto
+                await window.mockCrypto.initialize();
+                
+                // Encrypt the file data (mock)
+                const encryptionContext = {
+                    purpose: 'ml-inference',
+                    model_version: 'yolov5s-v1.0',
+                    content_type: selectedFile.type,
+                    filename: selectedFile.name
+                };
+                
+                const encryptedData = await window.mockCrypto.encrypt(selectedFile, encryptionContext);
+                
+                // Update button text
+                processButton.textContent = '📤 Uploading encrypted data...';
+                
+                // Create form data with encrypted payload (mock - still sending original for now)
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+                
+                // Add encryption metadata
+                formData.append('encrypted', 'true');
+                formData.append('algorithm', encryptedData.algorithm);
+                formData.append('keyId', encryptedData.keyId);
+                formData.append('encryptionContext', JSON.stringify(encryptedData.encryptionContext));
+                
+                if (window.cryptoLogger) {
+                    cryptoLogger.info('Uploading encrypted payload', {
+                        originalSize: selectedFile.size,
+                        encryptedSize: encryptedData.encryptedSize,
+                        algorithm: encryptedData.algorithm,
+                        keyId: encryptedData.keyId.substring(0, 16) + '...'
+                    });
+                }
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                currentJobId = result.jobId;
+                
+                if (window.cryptoLogger) {
+                    cryptoLogger.success('Encrypted upload completed', {
+                        jobId: result.jobId,
+                        status: result.status
+                    });
+                }
+                
+                // Show results section and start polling
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.classList.remove('hidden');
+                
+                pollForResults(result.jobId);
+                
+            } catch (error) {
+                console.error('Encrypted upload failed:', error);
+                if (window.cryptoLogger) {
+                    cryptoLogger.error('Encrypted upload failed', {
+                        error: error.message,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+                showError(`Encrypted upload failed: ${error.message}`);
+                processButton.disabled = false;
+                processButton.textContent = '🚀 Process Image';
+            }
+        };
+        
+        // Add crypto logging to results
+        const originalShowResults = showResults;
+        showResults = function(result) {
+            if (window.cryptoLogger) {
+                cryptoLogger.info('Processing response received, starting decryption');
+                
+                // Mock decrypt the results
+                window.mockCrypto.decrypt({
+                    ciphertext: 'mock-encrypted-results',
+                    keyId: window.mockCrypto.keyId,
+                    algorithm: window.mockCrypto.algorithm,
+                    originalSize: JSON.stringify(result).length,
+                    encryptedSize: JSON.stringify(result).length * 1.1
+                }).then(() => {
+                    cryptoLogger.success('Results decrypted and verified', {
+                        jobId: result.id,
+                        catsDetected: result.cats,
+                        confidence: result.confidence,
+                        processingTime: result.processingTime
+                    });
+                }).catch(err => {
+                    cryptoLogger.error('Result decryption failed', { error: err.message });
+                });
+            }
+            
+            return originalShowResults.apply(this, arguments);
+        };
+        
+        // Add crypto logging to errors
+        const originalShowError = showError;
+        showError = function(message) {
+            if (window.cryptoLogger) {
+                cryptoLogger.error('Processing failed', {
+                    error: message,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            return originalShowError.apply(this, arguments);
+        };
+        
+        // Edge case testing function
+        async function runEdgeCaseTests() {
+            if (window.cryptoLogger) {
+                cryptoLogger.info('Starting comprehensive edge case testing');
+            }
+            
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = '🧪 Running Tests...';
+            
+            try {
+                const report = await window.runCryptoBoundaryTests();
+                
+                if (window.cryptoLogger) {
+                    cryptoLogger.success('Edge case testing completed', {
+                        totalTests: report.total,
+                        successful: report.successful,
+                        failed: report.failed
+                    });
+                    
+                    if (report.failed > 0) {
+                        cryptoLogger.warning(`${report.failed} tests failed - check console for details`);
+                    }
+                }
+                
+                alert(`Edge case testing complete!\n\nTotal: ${report.total}\nSuccessful: ${report.successful}\nFailed: ${report.failed}\n\nCheck crypto logs and console for details.`);
+                
+            } catch (error) {
+                if (window.cryptoLogger) {
+                    cryptoLogger.error('Edge case testing failed', {
+                        error: error.message
+                    });
+                }
+                alert(`Edge case testing failed: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = '🧪 Run Edge Case Tests';
+            }
+        }
+        
+        // CSP-compliant event listeners (no inline onclick handlers)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Process Image button
+            const processButton = document.getElementById('processButton');
+            if (processButton) {
+                processButton.addEventListener('click', uploadAndProcess);
+            }
+            
+            // Edge Case Tests button  
+            const edgeCaseTestButton = document.getElementById('edgeCaseTestButton');
+            if (edgeCaseTestButton) {
+                edgeCaseTestButton.addEventListener('click', runEdgeCaseTests);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+redis==5.0.1
+# Use a widely available wheel on macOS/Linux CI
+onnxruntime==1.20.1
+opencv-python==4.8.1.78
+# Python 3.13 compatible, <2.0 to satisfy opencv 4.8
+numpy==1.26.4
+# Pillow version with Python 3.13 wheels available
+pillow==10.3.0
+pydantic==2.5.0
+python-multipart==0.0.6
+pytest==7.4.3
+pytest-asyncio==0.21.1
+requests==2.31.0

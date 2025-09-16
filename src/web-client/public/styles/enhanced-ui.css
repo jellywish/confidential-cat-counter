@@ -1,0 +1,456 @@
+/* Enhanced UI styles for better user experience */
+
+/* Tooltip system */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 300px;
+  background-color: #1e293b;
+  color: #fff;
+  text-align: left;
+  border-radius: 8px;
+  padding: 12px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -150px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.tooltip .tooltiptext::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Educational sections */
+.educational-section {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #0ea5e9;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.educational-section h3 {
+  color: #0c4a6e;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.educational-section .icon {
+  font-size: 1.2rem;
+}
+
+.educational-section p {
+  color: #075985;
+  margin-bottom: 0.5rem;
+}
+
+.educational-section ul {
+  color: #075985;
+  margin-left: 1.5rem;
+}
+
+/* Sample image gallery */
+.sample-gallery {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.sample-gallery h3 {
+  color: #1e293b;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sample-item {
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8fafc;
+}
+
+.sample-item:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.sample-item.selected {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.sample-item .icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.sample-item .title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #1e293b;
+}
+
+.sample-item .description {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Process visualization */
+.process-flow {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.process-flow h3 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #1e293b;
+}
+
+.process-steps {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.process-step {
+  flex: 1;
+  min-width: 120px;
+  text-align: center;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.process-step.active {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.process-step.completed {
+  background: #dcfce7;
+  border-color: #10b981;
+  color: #047857;
+}
+
+.process-step .step-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.process-step .step-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.process-step .step-description {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.process-arrow {
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+/* Enhanced crypto logging */
+.crypto-log-enhanced {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1rem;
+}
+
+.crypto-log-enhanced .log-entry {
+  margin-bottom: 0.5rem;
+  padding: 0.25rem 0;
+  border-left: 3px solid transparent;
+  padding-left: 0.5rem;
+}
+
+.crypto-log-enhanced .log-entry.info {
+  border-left-color: #3b82f6;
+  color: #93c5fd;
+}
+
+.crypto-log-enhanced .log-entry.success {
+  border-left-color: #10b981;
+  color: #6ee7b7;
+}
+
+.crypto-log-enhanced .log-entry.warning {
+  border-left-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.crypto-log-enhanced .log-entry.error {
+  border-left-color: #ef4444;
+  color: #fca5a5;
+}
+
+.crypto-log-enhanced .timestamp {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.crypto-log-enhanced .operation {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.crypto-log-enhanced .details {
+  color: #94a3b8;
+  margin-left: 1rem;
+  font-size: 0.8rem;
+}
+
+/* Source code links */
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.source-link:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Security benefits section */
+.security-benefits {
+  background: linear-gradient(135deg, #fef3f2 0%, #fecaca 100%);
+  border: 1px solid #f87171;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+}
+
+.security-benefits h3 {
+  color: #991b1b;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.security-benefits .benefit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.security-benefits .benefit-list li {
+  margin-bottom: 0.5rem;
+  padding-left: 2rem;
+  position: relative;
+  color: #7f1d1d;
+}
+
+.security-benefits .benefit-list li::before {
+  content: "🔐";
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .process-steps {
+    flex-direction: column;
+  }
+  
+  .process-arrow {
+    transform: rotate(90deg);
+  }
+  
+  .sample-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .tooltip .tooltiptext {
+    width: 250px;
+    margin-left: -125px;
+  }
+}
+
+/* Animation keyframes */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.processing {
+  animation: pulse 2s infinite;
+}
+
+/* Progress indicator */
+.progress-bar {
+  background: #e2e8f0;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* Enhanced button styles */
+.btn-enhanced {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.btn-enhanced:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+}
+
+.btn-enhanced:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.btn-enhanced:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Configuration panel */
+.config-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.config-panel h3 {
+  color: #1e293b;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.config-item {
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.config-item label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.config-item select,
+.config-item input[type="range"] {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+}
