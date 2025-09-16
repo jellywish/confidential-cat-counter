@@ -1,0 +1,177 @@
+Confidential Cat Counter - Privacy-Preserving ML Reference Architecture
+Copyright 2025 Spencer (Confidential Cat Counter Contributors)
+
+This product includes software developed at various organizations and 
+is licensed under the Apache License, Version 2.0.
+
+================================================================================
+
+This software contains third-party code subject to the following licenses:
+
+--------------------------------------------------------------------------------
+AWS Encryption SDK for JavaScript
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Licensed under the Apache License, Version 2.0
+
+This product includes software developed by Amazon Web Services, Inc.
+(http://aws.amazon.com/).
+
+Included components:
+- @aws-crypto/encrypt-browser
+- @aws-crypto/raw-aes-keyring-browser  
+- @aws-crypto/caching-materials-manager-browser
+
+Source: https://github.com/aws/aws-encryption-sdk-javascript
+
+--------------------------------------------------------------------------------
+OpenCV Python
+Copyright (C) 2000-2023, Intel Corporation, all rights reserved.
+Copyright (C) 2009-2011, Willow Garage Inc., all rights reserved.
+Copyright (C) 2009-2016, NVIDIA Corporation, all rights reserved.
+Copyright (C) 2010-2013, Advanced Micro Devices, Inc., all rights reserved.
+Copyright (C) 2015-2016, OpenCV Foundation, all rights reserved.
+Copyright (C) 2015-2016, Itseez Inc., all rights reserved.
+Copyright (C) 2019-2020, Xperience AI, all rights reserved.
+Licensed under the Apache License, Version 2.0
+
+This product includes computer vision software developed by OpenCV Foundation.
+
+Source: https://github.com/opencv/opencv-python
+
+--------------------------------------------------------------------------------
+Python Multipart
+Copyright (C) 2015-2023 Andrew Dunham
+Licensed under the Apache License, Version 2.0
+
+Source: https://github.com/andrew-d/python-multipart
+
+--------------------------------------------------------------------------------
+pytest-asyncio
+Copyright (c) 2014-2023 pytest-asyncio contributors
+Licensed under the Apache License, Version 2.0
+
+Source: https://github.com/pytest-dev/pytest-asyncio
+
+--------------------------------------------------------------------------------
+Requests HTTP Library
+Copyright 2019 Kenneth Reitz
+Licensed under the Apache License, Version 2.0
+
+Source: https://github.com/psf/requests
+
+--------------------------------------------------------------------------------
+NumPy
+Copyright (c) 2005-2023, NumPy Developers.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+* Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above
+  copyright notice, this list of conditions and the following
+  disclaimer in the documentation and/or other materials provided
+  with the distribution.
+
+* Neither the name of the NumPy Developers nor the names of any
+  contributors may be used to endorse or promote products derived
+  from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Source: https://github.com/numpy/numpy
+
+--------------------------------------------------------------------------------
+Uvicorn ASGI Server
+Copyright (c) 2017-present, Encode OSS Ltd.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its contributors
+  may be used to endorse or promote products derived from this software
+  without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Source: https://github.com/encode/uvicorn
+
+--------------------------------------------------------------------------------
+YOLO-NAS Object Detection Model
+Copyright (c) 2022 Deci AI
+Licensed under the Apache License, Version 2.0
+
+This product includes machine learning models developed by Deci AI as part
+of the SuperGradients library.
+
+Source: https://github.com/Deci-AI/super-gradients
+
+================================================================================
+
+MIT Licensed Components:
+
+The following components are distributed under the MIT License:
+
+Express.js, Express Rate Limit, CORS, Helmet, Multer, Redis (Node.js), UUID,
+Jest, Nodemon, Supertest, ESLint, Prettier, FastAPI, Pillow, ONNX Runtime,
+Redis (Python), Pydantic, pytest, Requests, Ruff, Black
+
+For the full text of the MIT License, see:
+https://opensource.org/licenses/MIT
+
+================================================================================
+
+Docker Base Images:
+
+This software is designed to run on Docker containers based on:
+- node:18.17.0-alpine (MIT License)
+- python:3.11-slim (Python Software Foundation License)  
+- redis:7-alpine (BSD 3-Clause License)
+
+================================================================================
+
+DISCLAIMER:
+
+This software is a reference implementation for educational and demonstration
+purposes. It includes cryptographic software that may be subject to export
+controls in some jurisdictions. Users are responsible for compliance with
+applicable laws and regulations.
+
+The machine learning models included are trained on publicly available datasets
+and are provided for demonstration purposes only. Accuracy and performance may
+vary based on use case and data characteristics.
+
+================================================================================
+
+For questions about licensing or attribution, please see:
+https://github.com/[organization]/confidential-cat-counter/issues

@@ -1,0 +1,84 @@
+{
+  "name": "confidential-cat-counter",
+  "version": "1.0.0",
+  "description": "Privacy-preserving machine learning reference architecture demonstrating client-side encryption with server-side ML processing",
+  "main": "src/web-client/server.js",
+  "scripts": {
+    "start": "docker-compose up",
+    "dev": "docker-compose -f docker-compose.dev.yml up",
+    "build": "docker-compose build",
+    "test": "./scripts/test.sh --all",
+    "test:unit": "./scripts/test.sh --unit",
+    "test:integration": "./scripts/test.sh --integration",
+    "test:security": "./scripts/test.sh --security",
+    "lint": "cd src/web-client && npm run lint && cd ../ml-service && black --check . && flake8 .",
+    "format": "cd src/web-client && npm run format && cd ../ml-service && black .",
+    "setup": "./setup.sh",
+    "cleanup": "./scripts/cleanup.sh",
+    "version:patch": "npm version patch --no-git-tag-version && npm run version:tag",
+    "version:minor": "npm version minor --no-git-tag-version && npm run version:tag",
+    "version:major": "npm version major --no-git-tag-version && npm run version:tag",
+    "version:tag": "git add package.json && git commit -m \"chore: bump version to v$(node -p 'require(\"./package.json\").version')\" && git tag v$(node -p 'require(\"./package.json\").version')",
+    "version:info": "node -p 'require(\"./package.json\").version'",
+    "prerelease": "npm run test && npm run lint",
+    "release": "npm run prerelease && npm run version:minor",
+    "release:patch": "npm run prerelease && npm run version:patch",
+    "release:major": "npm run prerelease && npm run version:major"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jellywish/confidential-cat-counter.git"
+  },
+  "keywords": [
+    "privacy",
+    "machine-learning",
+    "encryption",
+    "confidential-computing",
+    "reference-architecture",
+    "aws-encryption-sdk",
+    "yolo",
+    "onnx",
+    "docker",
+    "privacy-preserving-ml"
+  ],
+  "author": "Confidential Cat Counter Team",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/jellywish/confidential-cat-counter/issues"
+  },
+  "homepage": "https://github.com/jellywish/confidential-cat-counter#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0",
+    "docker": ">=20.10.0",
+    "docker-compose": ">=2.0.0"
+  },
+  "devDependencies": {
+    "semantic-release": "^21.0.0",
+    "@semantic-release/changelog": "^6.0.0",
+    "@semantic-release/git": "^10.0.0",
+    "@semantic-release/github": "^9.0.0"
+  },
+  "release": {
+    "branches": [
+      "main"
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      "@semantic-release/github",
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "package.json",
+            "CHANGELOG.md"
+          ],
+          "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        }
+      ]
+    ]
+  }
+}

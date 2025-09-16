@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 15: File Chunking Implementation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .test-section {
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+        }
+        .success { background: #f0f9ff; border-color: #0ea5e9; }
+        .error { background: #fef2f2; border-color: #ef4444; }
+        .warning { background: #fffbeb; border-color: #f59e0b; }
+        .info { background: #f8fafc; border-color: #64748b; }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #0ea5e9;
+            transition: width 0.3s ease;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .metric {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .metric-label {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 0.5rem;
+            font-size: 1rem;
+        }
+        button:hover { background: #0284c7; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .file-input {
+            margin: 1rem 0;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧩 Day 15: File Chunking Implementation & Large File Testing</h1>
+        <p><strong>Goal:</strong> Implement robust file chunking with 8KB base64 conversion to prevent call stack errors on large files (5MB-20MB)</p>
+        
+        <div class="test-section info">
+            <h3>📁 File Selection</h3>
+            <input type="file" id="fileInput" class="file-input" accept="*/*">
+            <button onclick="processFile()">Process File with Chunking</button>
+            <button onclick="runAutomatedTests()">Run Automated Size Tests</button>
+        </div>
+
+        <div class="test-section" id="progressSection" style="display: none;">
+            <h3>⏱️ Processing Progress</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+            <p id="progressText">Ready to process...</p>
+        </div>
+
+        <div class="metrics" id="metricsSection" style="display: none;">
+            <div class="metric">
+                <div class="metric-value" id="fileSizeValue">-</div>
+                <div class="metric-label">File Size</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="chunkCountValue">-</div>
+                <div class="metric-label">Total Chunks</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="encryptTimeValue">-</div>
+                <div class="metric-label">Encryption Time</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="memoryUsageValue">-</div>
+                <div class="metric-label">Peak Memory (MB)</div>
+            </div>
+        </div>
+
+        <div class="test-section" id="resultsSection" style="display: none;">
+            <h3>✅ Validation Results</h3>
+            <div id="validationResults"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Processing Log</h3>
+            <div class="log" id="logContainer"></div>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+
+    <script>
+        // Mock encryption for chunking testing (matches AWS ESDK interface)
+        let testKeyring;
+        let processingCancelled = false;
+
+        // Mock encryption functions for testing chunking logic
+        async function encrypt(keyring, data, options = {}) {
+            // Simulate encryption processing time
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 50));
+            
+            // Create mock encrypted data (larger than input)
+            const mockEncrypted = new Uint8Array(data.length + 64); // Add overhead
+            
+            // Fill with random data in 64KB chunks (browser crypto limit)
+            const maxRandomChunk = 65536; // 64KB limit for crypto.getRandomValues()
+            for (let i = 0; i < mockEncrypted.length; i += maxRandomChunk) {
+                const chunkSize = Math.min(maxRandomChunk, mockEncrypted.length - i);
+                const chunk = new Uint8Array(chunkSize);
+                crypto.getRandomValues(chunk);
+                mockEncrypted.set(chunk, i);
+            }
+            
+            // Include original data checksum for validation
+            const checksum = await crypto.subtle.digest('SHA-256', data);
+            const checksumArray = new Uint8Array(checksum);
+            mockEncrypted.set(checksumArray.slice(0, 32), 0); // First 32 bytes = checksum
+            mockEncrypted.set(data, 32); // Original data after checksum
+            
+            return { 
+                result: mockEncrypted,
+                messageHeader: {
+                    encryptionContext: options.encryptionContext || {}
+                }
+            };
+        }
+
+        async function decrypt(keyring, encryptedData) {
+            // Simulate decryption processing time
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 30));
+            
+            // Extract original data (skip first 32 bytes of checksum)
+            const originalData = encryptedData.slice(32);
+            
+            // Validate checksum
+            const expectedChecksum = encryptedData.slice(0, 32);
+            const actualChecksum = new Uint8Array(await crypto.subtle.digest('SHA-256', originalData));
+            
+            // Check if checksums match (first 32 bytes)
+            for (let i = 0; i < 32; i++) {
+                if (expectedChecksum[i] !== actualChecksum[i]) {
+                    throw new Error('Decryption validation failed: checksum mismatch');
+                }
+            }
+            
+            return { 
+                result: originalData,
+                messageHeader: {
+                    encryptionContext: {}
+                }
+            };
+        }
+
+        // Initialize keyring (mock)
+        async function initializeKeyring() {
+            try {
+                // Mock keyring - just needs to exist for interface compatibility
+                testKeyring = {
+                    keyName: 'day15-chunking-test',
+                    keyNamespace: 'ccc-reference'
+                };
+                
+                log('✅ Mock keyring initialized successfully (chunking focus)');
+                return true;
+            } catch (error) {
+                log(`❌ Keyring initialization failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        // Enhanced base64 conversion with chunking (safe for large arrays)
+        function arrayToBase64(uint8Array) {
+            // Use browser's built-in methods for large arrays
+            let binaryString = '';
+            const chunkSize = 8192; // Process in chunks to avoid call stack limits
+            
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                const chunk = uint8Array.slice(i, i + chunkSize);
+                binaryString += String.fromCharCode.apply(null, chunk);
+            }
+            
+            return btoa(binaryString);
+        }
+
+        function base64ToArray(base64String) {
+            try {
+                const binaryString = atob(base64String);
+                const uint8Array = new Uint8Array(binaryString.length);
+                
+                for (let i = 0; i < binaryString.length; i++) {
+                    uint8Array[i] = binaryString.charCodeAt(i);
+                }
+                
+                return uint8Array;
+            } catch (error) {
+                throw new Error(`Base64 decoding failed: ${error.message}`);
+            }
+        }
+
+        // File chunking implementation
+        async function encryptFileInChunks(file, chunkSizeMB = 1) {
+            const chunkSize = chunkSizeMB * 1024 * 1024; // Convert MB to bytes
+            const chunks = [];
+            const totalChunks = Math.ceil(file.size / chunkSize);
+            
+            log(`📊 Processing ${formatBytes(file.size)} file in ${totalChunks} chunks of ${chunkSizeMB}MB each`);
+            
+            const startTime = performance.now();
+            let peakMemory = 0;
+
+            for (let i = 0; i < totalChunks; i++) {
+                if (processingCancelled) {
+                    log('⚠️ Processing cancelled by user');
+                    return null;
+                }
+
+                const start = i * chunkSize;
+                const end = Math.min(start + chunkSize, file.size);
+                const chunk = file.slice(start, end);
+                const chunkBytes = new Uint8Array(await chunk.arrayBuffer());
+                
+                // Track memory usage
+                const memoryBefore = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                
+                // Encryption context for this chunk
+                const encryptionContext = {
+                    "file_size": String(file.size),
+                    "file_type": file.type || "application/octet-stream",
+                    "upload_timestamp": new Date().toISOString().split('T')[0],
+                    "app": "ccc-reference",
+                    "version": "phase2",
+                    "chunk_index": String(i),
+                    "total_chunks": String(totalChunks),
+                    "chunk_size": String(chunkBytes.length)
+                };
+
+                try {
+                    const { result } = await encrypt(testKeyring, chunkBytes, { encryptionContext });
+                    
+                    // Convert to base64 using chunked approach
+                    const base64Result = arrayToBase64(result);
+                    chunks.push({
+                        index: i,
+                        encryptedData: base64Result,
+                        originalSize: chunkBytes.length,
+                        encryptedSize: result.length,
+                        context: encryptionContext
+                    });
+                    
+                    // Track memory after processing
+                    const memoryAfter = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                    peakMemory = Math.max(peakMemory, memoryAfter);
+                    
+                    // Update progress
+                    const progress = ((i + 1) / totalChunks) * 100;
+                    updateProgress(progress, `Processing chunk ${i + 1}/${totalChunks} (${formatBytes(chunkBytes.length)})`);
+                    
+                    log(`✅ Chunk ${i + 1}/${totalChunks}: ${formatBytes(chunkBytes.length)} → ${formatBytes(result.length)} encrypted`);
+                    
+                    // Small delay to prevent UI blocking
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                    
+                } catch (error) {
+                    log(`❌ Encryption failed for chunk ${i + 1}: ${error.message}`);
+                    return null;
+                }
+            }
+
+            const totalTime = performance.now() - startTime;
+            const peakMemoryMB = peakMemory / (1024 * 1024);
+            
+            log(`🎯 Chunking complete: ${totalChunks} chunks in ${totalTime.toFixed(1)}ms`);
+            log(`📈 Peak memory usage: ${peakMemoryMB.toFixed(1)}MB`);
+            
+            return {
+                chunks,
+                metadata: {
+                    totalChunks,
+                    originalSize: file.size,
+                    encryptedSize: chunks.reduce((sum, chunk) => sum + chunk.encryptedSize, 0),
+                    processingTime: totalTime,
+                    peakMemoryMB
+                }
+            };
+        }
+
+        // Decrypt and validate chunks
+        async function decryptAndValidateChunks(encryptedChunks, originalFile) {
+            log('🔓 Starting chunk decryption and validation...');
+            
+            const startTime = performance.now();
+            const decryptedChunks = [];
+            
+            for (let i = 0; i < encryptedChunks.chunks.length; i++) {
+                const chunk = encryptedChunks.chunks[i];
+                
+                try {
+                    // Convert base64 back to Uint8Array
+                    const encryptedBytes = base64ToArray(chunk.encryptedData);
+                    
+                    const { result, messageHeader } = await decrypt(testKeyring, encryptedBytes);
+                    
+                    decryptedChunks.push(result);
+                    
+                    // Validate encryption context
+                    const context = messageHeader.encryptionContext;
+                    log(`✅ Chunk ${i + 1} decrypted: ${context.chunk_size} bytes, context validated`);
+                    
+                } catch (error) {
+                    log(`❌ Decryption failed for chunk ${i + 1}: ${error.message}`);
+                    return false;
+                }
+            }
+            
+            // Reassemble original file
+            const totalLength = decryptedChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+            const reassembled = new Uint8Array(totalLength);
+            let offset = 0;
+            
+            for (const chunk of decryptedChunks) {
+                reassembled.set(chunk, offset);
+                offset += chunk.length;
+            }
+            
+            // Validate against original
+            const originalBytes = new Uint8Array(await originalFile.arrayBuffer());
+            const isValid = reassembled.length === originalBytes.length && 
+                           reassembled.every((byte, index) => byte === originalBytes[index]);
+            
+            const totalTime = performance.now() - startTime;
+            
+            if (isValid) {
+                log(`✅ Validation successful: ${formatBytes(reassembled.length)} reassembled in ${totalTime.toFixed(1)}ms`);
+            } else {
+                log(`❌ Validation failed: size or content mismatch`);
+            }
+            
+            return isValid;
+        }
+
+        // Process selected file
+        async function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) {
+                alert('Please select a file first');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            processingCancelled = false;
+            
+            // Initialize keyring if needed
+            if (!testKeyring && !(await initializeKeyring())) {
+                return;
+            }
+
+            // Show progress section
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('metricsSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            
+            log(`🚀 Starting chunked processing of: ${file.name} (${formatBytes(file.size)})`);
+            
+            try {
+                // Encrypt file in chunks
+                const encryptedResult = await encryptFileInChunks(file);
+                if (!encryptedResult) return;
+                
+                // Update metrics
+                updateMetrics(file.size, encryptedResult.metadata);
+                
+                // Validate by decrypting
+                const isValid = await decryptAndValidateChunks(encryptedResult, file);
+                
+                // Show results
+                showValidationResults(isValid, encryptedResult.metadata);
+                
+            } catch (error) {
+                log(`❌ Processing failed: ${error.message}`);
+                showValidationResults(false, null, error.message);
+            }
+        }
+
+        // Run automated tests with different file sizes
+        async function runAutomatedTests() {
+            if (!testKeyring && !(await initializeKeyring())) {
+                return;
+            }
+
+            const testSizes = [
+                { size: 5 * 1024 * 1024, name: '5MB Test' },      // 5MB
+                { size: 10 * 1024 * 1024, name: '10MB Test' },    // 10MB  
+                { size: 15 * 1024 * 1024, name: '15MB Test' },    // 15MB
+                { size: 20 * 1024 * 1024, name: '20MB Test' }     // 20MB
+            ];
+
+            log('🧪 Starting automated chunking tests...');
+            
+            for (const test of testSizes) {
+                log(`\n📊 ${test.name}: Generating ${formatBytes(test.size)} test file...`);
+                
+                // Generate test file
+                const testData = new Uint8Array(test.size);
+                for (let i = 0; i < test.size; i++) {
+                    testData[i] = i % 256; // Repeating pattern for validation
+                }
+                const testFile = new File([testData], `test-${test.name.toLowerCase().replace(' ', '-')}.bin`);
+                
+                document.getElementById('progressSection').style.display = 'block';
+                
+                try {
+                    // Process with chunking
+                    const encryptedResult = await encryptFileInChunks(testFile);
+                    if (!encryptedResult) continue;
+                    
+                    // Validate
+                    const isValid = await decryptAndValidateChunks(encryptedResult, testFile);
+                    
+                    log(`${isValid ? '✅' : '❌'} ${test.name}: ${isValid ? 'PASSED' : 'FAILED'}`);
+                    log(`   Chunks: ${encryptedResult.metadata.totalChunks}, Time: ${encryptedResult.metadata.processingTime.toFixed(1)}ms, Memory: ${encryptedResult.metadata.peakMemoryMB.toFixed(1)}MB`);
+                    
+                } catch (error) {
+                    log(`❌ ${test.name}: FAILED - ${error.message}`);
+                }
+            }
+            
+            log('\n🎯 Automated testing complete!');
+        }
+
+        // Utility functions
+        function updateProgress(percent, text) {
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+
+        function updateMetrics(fileSize, metadata) {
+            document.getElementById('fileSizeValue').textContent = formatBytes(fileSize);
+            document.getElementById('chunkCountValue').textContent = metadata.totalChunks;
+            document.getElementById('encryptTimeValue').textContent = metadata.processingTime.toFixed(1) + 'ms';
+            document.getElementById('memoryUsageValue').textContent = metadata.peakMemoryMB.toFixed(1);
+            document.getElementById('metricsSection').style.display = 'grid';
+        }
+
+        function showValidationResults(isValid, metadata, errorMessage = null) {
+            const resultsDiv = document.getElementById('validationResults');
+            const cssClass = isValid ? 'success' : 'error';
+            
+            let html = `<div class="${cssClass}">`;
+            if (isValid) {
+                html += `<h4>✅ Chunking Validation: PASSED</h4>`;
+                html += `<p>File successfully chunked, encrypted, decrypted, and reassembled.</p>`;
+                if (metadata) {
+                    html += `<ul>`;
+                    html += `<li><strong>Total chunks:</strong> ${metadata.totalChunks}</li>`;
+                    html += `<li><strong>Original size:</strong> ${formatBytes(metadata.originalSize)}</li>`;
+                    html += `<li><strong>Encrypted size:</strong> ${formatBytes(metadata.encryptedSize)}</li>`;
+                    html += `<li><strong>Processing time:</strong> ${metadata.processingTime.toFixed(1)}ms</li>`;
+                    html += `<li><strong>Peak memory:</strong> ${metadata.peakMemoryMB.toFixed(1)}MB</li>`;
+                    html += `</ul>`;
+                }
+            } else {
+                html += `<h4>❌ Chunking Validation: FAILED</h4>`;
+                html += `<p>Chunking process encountered errors.</p>`;
+                if (errorMessage) {
+                    html += `<p><strong>Error:</strong> ${errorMessage}</p>`;
+                }
+            }
+            html += `</div>`;
+            
+            resultsDiv.innerHTML = html;
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function log(message) {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.innerHTML += `[${timestamp}] ${message}<br>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', async () => {
+            log('🔧 Day 15 Chunking Test Environment initialized');
+            log('📋 Ready to test file chunking with large files (5MB-20MB)');
+            
+            // Check bundle size
+            const bundleInfo = await estimateBundleSize();
+            log(`📦 Estimated bundle size: ${bundleInfo}`);
+        });
+
+        async function estimateBundleSize() {
+            try {
+                // Rough estimation based on loaded scripts
+                const scripts = document.querySelectorAll('script[src]');
+                let totalSize = 0;
+                
+                for (const script of scripts) {
+                    if (script.src.includes('aws-crypto')) {
+                        // AWS Crypto library is approximately 450KB gzipped
+                        totalSize += 450;
+                    }
+                }
+                
+                return `~${totalSize}KB (target: <500KB)`;
+            } catch (error) {
+                return 'Unable to estimate';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+# Docker Compose configuration for Phase 1
+
+services:
+  web-client:
+    build: ./src/web-client
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - ML_SERVICE_URL=http://ml-service:8000
+      - NODE_ENV=development
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./src/web-client:/app
+      - /app/node_modules
+    depends_on:
+      - redis
+      - ml-service
+    restart: unless-stopped
+    user: "${UID:-1001}:${GID:-1001}"
+
+  ml-service:
+    build: ./src/ml-service
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PYTHONPATH=/app
+    volumes:
+      - ./src/ml-service/models:/app/models
+      - ./data/uploads:/app/uploads
+      - ./data/results:/app/results
+      - ./src/ml-service:/app
+    depends_on:
+      - redis
+    restart: unless-stopped
+    user: "${UID:-1001}:${GID:-1001}"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  redis-data:

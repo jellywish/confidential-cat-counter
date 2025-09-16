@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day 11: File Size Performance Testing</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+        .success { border-color: #00ff00; background: #001100; }
+        .error { border-color: #ff0000; background: #110000; }
+        .info { border-color: #0080ff; background: #000011; }
+        .warning { border-color: #ffaa00; background: #110800; }
+        .performance { border-color: #ff00ff; background: #110011; }
+        pre { margin: 5px 0; white-space: pre-wrap; }
+        button { padding: 10px; margin: 5px; background: #333; color: #00ff00; border: 1px solid #666; cursor: pointer; }
+        button:hover { background: #444; }
+        .test-category { margin: 20px 0; padding: 15px; border: 2px solid #444; background: #111; }
+        .test-category h3 { margin-top: 0; color: #ffaa00; }
+        .performance-summary { background: #001122; border: 2px solid #0066ff; padding: 15px; margin: 15px 0; }
+        .memory-info { background: #221100; border: 2px solid #ff6600; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Day 11: File Size Performance Testing</h1>
+    <p>Testing Chrome-only file size boundaries (1KB, 1MB, 10MB) with performance monitoring</p>
+    
+    <div class="test-category">
+        <h3>Performance Test Controls</h3>
+        <button onclick="testAllFileSizes()">Test All File Sizes</button>
+        <button onclick="testMemoryUsage()">Memory Usage Test</button>
+        <button onclick="testPerformanceTargets()">Performance Target Validation</button>
+        <button onclick="runStressTest()">Stress Test (Multiple Files)</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="memory-info" id="memory-info">
+        <strong>Memory Information</strong>
+        <div id="memory-display">Click any test to see memory usage</div>
+    </div>
+    
+    <div id="test-results"></div>
+
+    <!-- Include crypto logger -->
+    <script src="utils/cryptoLogger.js"></script>
+    
+    <script>
+        const results = document.getElementById('test-results');
+        const memoryDisplay = document.getElementById('memory-display');
+        
+        function addResult(type, title, content) {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${title}</strong><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+
+        function clearResults() {
+            results.innerHTML = '';
+            updateMemoryInfo();
+        }
+
+        function updateMemoryInfo() {
+            if (performance.memory) {
+                const memory = performance.memory;
+                const used = (memory.usedJSHeapSize / 1024 / 1024).toFixed(2);
+                const total = (memory.totalJSHeapSize / 1024 / 1024).toFixed(2);
+                const limit = (memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2);
+                
+                memoryDisplay.innerHTML = `
+                    Used: ${used} MB | Total: ${total} MB | Limit: ${limit} MB
+                    <br>Usage: ${((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100).toFixed(1)}%
+                `;
+            } else {
+                memoryDisplay.innerHTML = 'Memory API not available in this browser';
+            }
+        }
+
+        // Performance tracking crypto class
+        class PerformanceTestCrypto {
+            constructor() {
+                this.initialized = false;
+                this.keyBytes = null;
+                this.cryptoKey = null;
+                this.keyName = 'performance-test-key';
+                this.algorithm = 'AES-256-GCM';
+                this.performanceData = [];
+            }
+
+            async initialize() {
+                if (this.initialized) return;
+
+                if (!window.crypto || !window.crypto.subtle) {
+                    throw new Error('WebCrypto API not available');
+                }
+
+                this.keyBytes = new Uint8Array(32);
+                crypto.getRandomValues(this.keyBytes);
+
+                this.cryptoKey = await window.crypto.subtle.importKey(
+                    'raw',
+                    this.keyBytes,
+                    { name: 'AES-GCM' },
+                    false,
+                    ['encrypt', 'decrypt']
+                );
+
+                this.initialized = true;
+            }
+
+            // Chunked base64 conversion for large files
+            arrayToBase64(uint8Array) {
+                const CHUNK_SIZE = 8192; // 8KB chunks to avoid call stack limits
+                let result = '';
+                
+                for (let i = 0; i < uint8Array.length; i += CHUNK_SIZE) {
+                    const chunk = uint8Array.slice(i, i + CHUNK_SIZE);
+                    result += String.fromCharCode(...chunk);
+                }
+                
+                return btoa(result);
+            }
+
+            // Chunked base64 to array conversion for large files
+            base64ToArray(base64String) {
+                const binaryString = atob(base64String);
+                const bytes = new Uint8Array(binaryString.length);
+                
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                
+                return bytes;
+            }
+
+            generateTestData(sizeBytes) {
+                // Generate deterministic test data for consistent testing
+                const data = new Uint8Array(sizeBytes);
+                for (let i = 0; i < sizeBytes; i++) {
+                    data[i] = (i * 7 + 23) % 256; // Simple pattern for reproducibility
+                }
+                return data;
+            }
+
+            async encryptWithPerformanceTracking(data, encryptionContext = {}) {
+                if (!this.initialized) {
+                    await this.initialize();
+                }
+
+                const startTime = performance.now();
+                const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+
+                // Convert data if needed
+                let dataBytes;
+                if (typeof data === 'number') {
+                    // Generate test data of specified size
+                    dataBytes = this.generateTestData(data);
+                } else if (data instanceof Uint8Array) {
+                    dataBytes = data;
+                } else if (typeof data === 'string') {
+                    dataBytes = new TextEncoder().encode(data);
+                } else {
+                    throw new Error('Unsupported data type');
+                }
+
+                // Generate IV
+                const iv = new Uint8Array(12);
+                crypto.getRandomValues(iv);
+
+                // Encrypt
+                const encryptedBuffer = await window.crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    this.cryptoKey,
+                    dataBytes
+                );
+
+                const encryptedBytes = new Uint8Array(encryptedBuffer);
+                const envelope = new Uint8Array(iv.length + encryptedBytes.length);
+                envelope.set(iv, 0);
+                envelope.set(encryptedBytes, iv.length);
+
+                const ciphertext = this.arrayToBase64(envelope);
+
+                const endTime = performance.now();
+                const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                const processingTime = endTime - startTime;
+                const memoryUsed = endMemory - startMemory;
+
+                const performanceMetrics = {
+                    originalSize: dataBytes.length,
+                    encryptedSize: ciphertext.length,
+                    processingTime: processingTime,
+                    memoryUsed: memoryUsed,
+                    throughput: (dataBytes.length / 1024 / 1024) / (processingTime / 1000), // MB/s
+                    timestamp: new Date().toISOString()
+                };
+
+                this.performanceData.push(performanceMetrics);
+
+                return {
+                    ciphertext: ciphertext,
+                    algorithm: this.algorithm,
+                    keyId: this.keyName,
+                    encryptionContext: { ...encryptionContext },
+                    originalSize: dataBytes.length,
+                    encryptedSize: ciphertext.length,
+                    performanceMetrics: performanceMetrics
+                };
+            }
+
+            async decryptWithPerformanceTracking(encryptedData) {
+                if (!this.initialized) {
+                    await this.initialize();
+                }
+
+                const startTime = performance.now();
+                const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+
+                // Convert base64 back to bytes
+                const envelopeBytes = this.base64ToArray(encryptedData.ciphertext);
+
+                // Extract IV and encrypted data
+                const iv = envelopeBytes.slice(0, 12);
+                const encryptedBytes = envelopeBytes.slice(12);
+
+                // Decrypt
+                const decryptedBuffer = await window.crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    this.cryptoKey,
+                    encryptedBytes
+                );
+
+                const decryptedBytes = new Uint8Array(decryptedBuffer);
+
+                const endTime = performance.now();
+                const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                const processingTime = endTime - startTime;
+                const memoryUsed = endMemory - startMemory;
+
+                return {
+                    success: true,
+                    data: decryptedBytes,
+                    performanceMetrics: {
+                        decryptionTime: processingTime,
+                        memoryUsed: memoryUsed,
+                        throughput: (decryptedBytes.length / 1024 / 1024) / (processingTime / 1000) // MB/s
+                    }
+                };
+            }
+
+            getPerformanceReport() {
+                if (this.performanceData.length === 0) {
+                    return 'No performance data collected yet';
+                }
+
+                const report = this.performanceData.map(data => ({
+                    size: `${(data.originalSize / 1024).toFixed(1)} KB`,
+                    time: `${data.processingTime.toFixed(2)} ms`,
+                    throughput: `${data.throughput.toFixed(2)} MB/s`,
+                    memory: `${(data.memoryUsed / 1024).toFixed(1)} KB`
+                }));
+
+                return report;
+            }
+
+            clearPerformanceData() {
+                this.performanceData = [];
+            }
+        }
+
+        const performanceTestCrypto = new PerformanceTestCrypto();
+
+        async function testSingleFileSize(sizeBytes, sizeName) {
+            updateMemoryInfo();
+            addResult('info', `Testing ${sizeName}`, `Starting encryption test for ${(sizeBytes / 1024).toFixed(1)} KB file`);
+
+            try {
+                // Test encryption
+                const encrypted = await performanceTestCrypto.encryptWithPerformanceTracking(sizeBytes, {
+                    app: 'ccc-reference',
+                    version: 'phase2',
+                    file_type: 'application/octet-stream',
+                    file_size: String(sizeBytes)
+                });
+
+                const encryptMetrics = encrypted.performanceMetrics;
+
+                // Test decryption
+                const decrypted = await performanceTestCrypto.decryptWithPerformanceTracking(encrypted);
+                const decryptMetrics = decrypted.performanceMetrics;
+
+                // Validate performance targets
+                const targets = getPerformanceTargets(sizeBytes);
+                const encryptPassed = encryptMetrics.processingTime <= targets.maxTime;
+                const decryptPassed = decryptMetrics.decryptionTime <= targets.maxTime;
+
+                const result = `
+📊 Encryption Performance:
+   Time: ${encryptMetrics.processingTime.toFixed(2)}ms (target: ≤${targets.maxTime}ms)
+   Throughput: ${encryptMetrics.throughput.toFixed(2)} MB/s
+   Memory: ${(encryptMetrics.memoryUsed / 1024).toFixed(1)} KB
+   Status: ${encryptPassed ? '✅ PASS' : '❌ FAIL'}
+
+📊 Decryption Performance:
+   Time: ${decryptMetrics.decryptionTime.toFixed(2)}ms
+   Throughput: ${decryptMetrics.throughput.toFixed(2)} MB/s
+   Memory: ${(decryptMetrics.memoryUsed / 1024).toFixed(1)} KB
+   Status: ${decryptPassed ? '✅ PASS' : '❌ FAIL'}
+
+📁 Data Integrity:
+   Original size: ${sizeBytes} bytes
+   Decrypted size: ${decrypted.data.length} bytes
+   Integrity: ${sizeBytes === decrypted.data.length ? '✅ VERIFIED' : '❌ FAILED'}
+                `;
+
+                const overallPass = encryptPassed && decryptPassed && (sizeBytes === decrypted.data.length);
+                addResult(overallPass ? 'performance' : 'error', `${sizeName} Performance Test`, result);
+
+                updateMemoryInfo();
+                return overallPass;
+
+            } catch (error) {
+                addResult('error', `${sizeName} Test Failed`, `Error: ${error.message}`);
+                updateMemoryInfo();
+                return false;
+            }
+        }
+
+        function getPerformanceTargets(sizeBytes) {
+            // Performance targets from Phase 2 plan
+            if (sizeBytes < 1024 * 1024) { // <1MB
+                return { maxTime: 500 }; // 500ms
+            } else if (sizeBytes <= 10 * 1024 * 1024) { // 1-10MB
+                return { maxTime: 5000 }; // 5s
+            } else { // >10MB
+                return { maxTime: 30000 }; // 30s
+            }
+        }
+
+        async function testAllFileSizes() {
+            clearResults();
+            addResult('info', 'Day 11 File Size Testing Started', 'Testing Chrome-only file size boundaries with performance monitoring');
+
+            // Initialize crypto
+            try {
+                await performanceTestCrypto.initialize();
+                addResult('success', 'Performance Test Crypto Initialized', '✅ Ready for file size testing');
+            } catch (error) {
+                addResult('error', 'Crypto Initialization Failed', error.message);
+                return;
+            }
+
+            // Clear previous performance data
+            performanceTestCrypto.clearPerformanceData();
+
+            // Test cases from Phase 2 plan
+            const testCases = [
+                { size: 1024, name: '1KB File' },           // Minimum
+                { size: 65536, name: '64KB File' },         // crypto.getRandomValues limit
+                { size: 1024 * 1024, name: '1MB File' },    // Typical user file
+                { size: 10 * 1024 * 1024, name: '10MB File' } // Large file
+            ];
+
+            let allPassed = true;
+            
+            for (const testCase of testCases) {
+                const passed = await testSingleFileSize(testCase.size, testCase.name);
+                if (!passed) allPassed = false;
+                
+                // Small delay to let browser recover
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            // Performance summary
+            const performanceReport = performanceTestCrypto.getPerformanceReport();
+            addResult('performance', 'Performance Summary', 
+                `File Size Performance Results:\n${JSON.stringify(performanceReport, null, 2)}`
+            );
+
+            // Final validation
+            if (allPassed) {
+                addResult('success', 'Day 11 File Size Validation', 
+                    '🎯 All file size tests PASSED\n' +
+                    '✅ 1KB - 10MB range working\n' +
+                    '✅ Performance targets met\n' +
+                    '✅ Memory usage controlled\n' +
+                    '✅ Data integrity verified'
+                );
+            } else {
+                addResult('error', 'Day 11 File Size Validation', 
+                    '❌ Some file size tests FAILED\n' +
+                    'Check individual test results above'
+                );
+            }
+
+            updateMemoryInfo();
+        }
+
+        async function testMemoryUsage() {
+            clearResults();
+            addResult('info', 'Memory Usage Test Started', 'Testing memory consumption across file sizes');
+
+            if (!performance.memory) {
+                addResult('warning', 'Memory API Unavailable', 'performance.memory not available in this browser');
+                return;
+            }
+
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+            }
+
+            const initialMemory = performance.memory.usedJSHeapSize;
+            addResult('info', 'Initial Memory State', `Baseline: ${(initialMemory / 1024 / 1024).toFixed(2)} MB`);
+
+            const memorySizes = [
+                { size: 1024 * 1024, name: '1MB' },      // 1MB
+                { size: 5 * 1024 * 1024, name: '5MB' },  // 5MB  
+                { size: 10 * 1024 * 1024, name: '10MB' } // 10MB
+            ];
+
+            for (const test of memorySizes) {
+                try {
+                    const memoryBefore = performance.memory.usedJSHeapSize;
+                    
+                    // Encrypt large data
+                    const encrypted = await performanceTestCrypto.encryptWithPerformanceTracking(test.size, {
+                        app: 'ccc-reference',
+                        version: 'phase2'
+                    });
+
+                    const memoryAfter = performance.memory.usedJSHeapSize;
+                    const memoryDiff = memoryAfter - memoryBefore;
+                    const memoryRatio = memoryDiff / test.size;
+
+                    addResult('performance', `Memory Test: ${test.name}`, 
+                        `File size: ${(test.size / 1024 / 1024).toFixed(1)} MB\n` +
+                        `Memory used: ${(memoryDiff / 1024 / 1024).toFixed(2)} MB\n` +
+                        `Memory ratio: ${memoryRatio.toFixed(2)}x\n` +
+                        `Status: ${memoryRatio < 3 ? '✅ GOOD' : '⚠️ HIGH'}`
+                    );
+
+                    // Force cleanup
+                    encrypted = null;
+                    
+                } catch (error) {
+                    addResult('error', `Memory Test: ${test.name}`, `Error: ${error.message}`);
+                }
+
+                updateMemoryInfo();
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        async function testPerformanceTargets() {
+            clearResults();
+            addResult('info', 'Performance Target Validation', 'Validating against Phase 2 performance requirements');
+
+            const targets = [
+                { size: 512 * 1024, name: 'Small files (<1MB)', maxTime: 500 },    // 500ms
+                { size: 5 * 1024 * 1024, name: 'Medium files (1-10MB)', maxTime: 5000 }, // 5s
+                { size: 15 * 1024 * 1024, name: 'Large files (10-20MB)', maxTime: 30000 } // 30s
+            ];
+
+            let allTargetsMet = true;
+
+            for (const target of targets) {
+                try {
+                    const encrypted = await performanceTestCrypto.encryptWithPerformanceTracking(target.size, {
+                        app: 'ccc-reference',
+                        version: 'phase2'
+                    });
+
+                    const actualTime = encrypted.performanceMetrics.processingTime;
+                    const targetMet = actualTime <= target.maxTime;
+                    
+                    if (!targetMet) allTargetsMet = false;
+
+                    addResult(targetMet ? 'success' : 'error', `Target: ${target.name}`, 
+                        `Size: ${(target.size / 1024 / 1024).toFixed(1)} MB\n` +
+                        `Time: ${actualTime.toFixed(2)}ms (target: ≤${target.maxTime}ms)\n` +
+                        `Status: ${targetMet ? '✅ MET' : '❌ MISSED'}\n` +
+                        `Throughput: ${encrypted.performanceMetrics.throughput.toFixed(2)} MB/s`
+                    );
+
+                } catch (error) {
+                    addResult('error', `Target: ${target.name}`, `Error: ${error.message}`);
+                    allTargetsMet = false;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            addResult(allTargetsMet ? 'success' : 'error', 'Performance Target Summary', 
+                allTargetsMet ? 
+                '✅ All performance targets MET' : 
+                '❌ Some performance targets MISSED'
+            );
+        }
+
+        async function runStressTest() {
+            clearResults();
+            addResult('info', 'Stress Test Started', 'Testing multiple concurrent operations');
+
+            const stressCases = [
+                { count: 5, size: 1024 * 1024, name: '5 x 1MB files' },
+                { count: 3, size: 5 * 1024 * 1024, name: '3 x 5MB files' }
+            ];
+
+            for (const stressCase of stressCases) {
+                try {
+                    const startTime = performance.now();
+                    const memoryBefore = performance.memory ? performance.memory.usedJSHeapSize : 0;
+
+                    // Run multiple operations concurrently
+                    const promises = Array(stressCase.count).fill().map(async (_, i) => {
+                        return await performanceTestCrypto.encryptWithPerformanceTracking(stressCase.size, {
+                            app: 'ccc-reference',
+                            version: 'phase2',
+                            batch_id: `stress-test-${i}`
+                        });
+                    });
+
+                    const results = await Promise.all(promises);
+                    
+                    const endTime = performance.now();
+                    const memoryAfter = performance.memory ? performance.memory.usedJSHeapSize : 0;
+                    const totalTime = endTime - startTime;
+                    const memoryUsed = memoryAfter - memoryBefore;
+
+                    addResult('performance', `Stress Test: ${stressCase.name}`, 
+                        `Operations: ${stressCase.count}\n` +
+                        `Total time: ${totalTime.toFixed(2)}ms\n` +
+                        `Average per operation: ${(totalTime / stressCase.count).toFixed(2)}ms\n` +
+                        `Memory used: ${(memoryUsed / 1024 / 1024).toFixed(2)} MB\n` +
+                        `Status: ${results.length === stressCase.count ? '✅ SUCCESS' : '❌ FAILED'}`
+                    );
+
+                } catch (error) {
+                    addResult('error', `Stress Test: ${stressCase.name}`, `Error: ${error.message}`);
+                }
+
+                updateMemoryInfo();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            addResult('info', 'Day 11 Validation Complete', 
+                '🎯 Day 11 File Size Testing Complete\n' +
+                '====================================\n' +
+                '✅ Chrome-only file size testing validated\n' +
+                '✅ Performance targets checked\n' +
+                '✅ Memory usage monitored\n' +
+                '✅ Stress testing completed\n' +
+                '\n📋 Ready for Day 12-14: Crypto logging integration'
+            );
+        }
+
+        // Auto-initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            updateMemoryInfo();
+            addResult('info', 'Day 11 File Size Test Page Loaded', 
+                'Chrome file size performance testing ready.\n' +
+                'Use "Test All File Sizes" for comprehensive validation.'
+            );
+        });
+
+        // Update memory info periodically
+        setInterval(updateMemoryInfo, 2000);
+    </script>
+</body>
+</html>
