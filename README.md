@@ -1,8 +1,6 @@
 # Confidential Cat Counter
 
-<p align="center">
-  <img src="assets/catalyst.png" alt="Confidential Cat Counter" width="420" />
-</p>
+![Confidential Cat Counter](./assets/catalyst.png)
 
 A privacy-preserving machine learning reference architecture demonstrating client-side encryption with server-side ML processing.
 
