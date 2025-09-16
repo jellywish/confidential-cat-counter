@@ -1,6 +1,10 @@
 # Confidential Cat Counter
 
-![Confidential Cat Counter](./assets/catalyst.png)
+<p align="center">
+  <img src="./assets/catalyst.png" alt="Catalyst — mascot and icon for Confidential Cat Counter" width="360" />
+  <br/>
+  <sub><b>Catalyst</b> — the project mascot and icon, inspired by Pushkin’s learned cat.</sub>
+</p>
 
 A privacy-preserving machine learning reference architecture demonstrating client-side encryption with server-side ML processing.
 
