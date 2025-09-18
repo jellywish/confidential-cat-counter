@@ -282,6 +282,16 @@ async def process_job(job_data: Dict[str, Any]) -> None:
         
         # Run ML inference
         result = detect_cats(image_path)
+
+        # Normalize result to JSON-serializable primitives before policy evaluation
+        try:
+            if 'cats' in result and hasattr(result['cats'], 'item'):
+                result['cats'] = int(result['cats'])
+            if 'confidence' in result and hasattr(result['confidence'], 'item'):
+                result['confidence'] = float(result['confidence'])
+        except Exception:
+            # Best-effort normalization; continue to policy evaluation
+            pass
         
         # Output policy evaluation
         output_decision = evaluate_output_policy(result, policy_bundle)
@@ -298,8 +308,8 @@ async def process_job(job_data: Dict[str, Any]) -> None:
         # Update job with results (convert numpy types to Python types)
         job_data.update({
             'status': 'completed',
-            'cats': int(result['cats']) if hasattr(result['cats'], 'item') else result['cats'],
-            'confidence': float(result['confidence']) if hasattr(result['confidence'], 'item') else result['confidence'],
+            'cats': int(result['cats']) if hasattr(result.get('cats'), 'item') else int(result.get('cats', 0)),
+            'confidence': float(result['confidence']) if hasattr(result.get('confidence'), 'item') else float(result.get('confidence', 0.0)),
             'processingTime': result['processing_time'],
             'model': result['model'],
             'completedAt': time.time()

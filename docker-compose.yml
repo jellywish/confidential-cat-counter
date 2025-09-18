@@ -9,6 +9,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - ML_SERVICE_URL=http://ml-service:8000
       - NODE_ENV=development
+      - HOME=/home/app
+      - NPM_CONFIG_CACHE=/home/app/.npm
     read_only: true
     cap_drop:
       - ALL
@@ -18,12 +20,15 @@ services:
       - uploads:/app/uploads
       - results:/app/results
       - ./src/web-client:/app:rw
+      - home-web:/home/app
       - /app/node_modules
+    tmpfs:
+      - /tmp
     depends_on:
       - redis
       - ml-service
     restart: unless-stopped
-    user: "${UID:-1001}:${GID:-1001}"
+    user: "1001:1001"
 
   ml-service:
     build: ./src/ml-service
@@ -63,3 +68,4 @@ volumes:
   redis-data:
   uploads:
   results:
+  home-web:
