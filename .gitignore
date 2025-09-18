@@ -70,3 +70,13 @@ src/ml-service/results/*
 
 # Other Research
 research/
+
+# Models (keep placeholders, ignore binaries)
+src/ml-service/models/*
+!src/ml-service/models/.gitkeep
+!src/ml-service/models/README.md
+# Extra safety if someone drops models elsewhere
+*.onnx
+*.pt
+*.pth
+*.engine

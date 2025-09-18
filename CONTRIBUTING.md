@@ -371,9 +371,9 @@ Any other relevant information.
 
 **DO NOT** open public issues for security vulnerabilities.
 
-Instead:
-1. Use [Security Advisory](https://github.com/[org]/confidential-cat-counter/security/advisories/new)
-2. Allow 90 days for coordinated disclosure
+Report vulnerabilities via GitHub Security Advisories:
+- https://github.com/jellywish/confidential-cat-counter/security/advisories/new
+- Allow 90 days for coordinated disclosure
 
 ## Security Considerations
 
@@ -523,8 +523,7 @@ We follow [Semantic Versioning](https://semver.org/):
 
 - **General Questions**: GitHub Discussions
 - **Bug Reports**: GitHub Issues
-- **Security Issues**: security@[domain]
-- **Maintainers**: @maintainer1, @maintainer2
+- **Security Issues**: Report via GitHub Security Advisories (link above)
 
 ## License
 

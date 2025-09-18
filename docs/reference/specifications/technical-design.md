@@ -808,6 +808,22 @@ ML Stack:
   - Model performance optimization and caching
 ```
 
+### Verification & Phase Gates
+
+- Detailed, testable success criteria are maintained internally; this section summarizes the gates.
+- Phase 1.5-light (local, simulation-thin) gate summary:
+  - AttestationVerifier/KeyReleaseClient interfaces exist; dev impls behind feature flag.
+  - Input/output Rego policy hooks enforce allow/deny/redact; golden tests pass.
+  - Hygiene: tmpfs for sensitive paths, non-root, read-only rootfs, no host bind-mounts for secrets.
+  - Structured audit with digests and simulated: true; HMAC-signed; schema matches Phase 2.
+  - CI gates: image digest/policy signature pinning; negative tests (tampered policy, disk/plaintext, arbitrary egress) fail closed.
+- Phase 2 (attested runtime) gate summary:
+  - Real enclave attestation verifies (quote, measurements pinned); client verification path provided.
+  - Key broker enforces attestation + policy hash before KMS key release; rejects on mismatch with signed rationale.
+  - Same policy/egress guard inside enclave; no plaintext to host storage; restricted egress.
+  - Signed, append-only audit with quote reference; verifiable out-of-enclave.
+  - CI/nightly enclave smoke: attestation→key release→inference→egress guard→audit verify; contract tests deny invalid attestation/nonce/digests.
+
 ### 12.5 Success Metrics (Reference Architecture)
 - **Educational Value**: Clear documentation of confidential computing patterns with Terraform IaC
 - **Reproducibility**: Anyone can run `terraform apply -var="deployment=local"` and see working system

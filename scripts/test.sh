@@ -148,11 +148,15 @@ install_dependencies() {
         npm install --save-dev jest supertest jsdom
     fi
     
-    # ML service dependencies
+    # ML service dependencies (optional for local without Docker)
     cd "$PROJECT_ROOT/src/ml-service"
     if [[ -f "requirements.txt" ]]; then
-        log_info "Installing Python dependencies..."
-        pip3 install -r requirements.txt || pip install -r requirements.txt
+        if [[ "${CCC_USE_LOCAL_PY_DEPS}" == "true" ]]; then
+            log_info "Installing Python dependencies (CCC_USE_LOCAL_PY_DEPS=true)..."
+            pip3 install -r requirements.txt || pip install -r requirements.txt
+        else
+            log_info "Skipping local Python dependency install (set CCC_USE_LOCAL_PY_DEPS=true to enable)"
+        fi
     fi
     
     cd "$PROJECT_ROOT"
@@ -200,17 +204,17 @@ run_integration_tests() {
     
     REDIS_CONTAINER=$(docker ps --filter "name=test-redis" --format "{{.Names}}" | head -1)
     
-    # Wait for Redis to be healthy
+    # Wait for Redis to be healthy (portable; no 'timeout' requirement)
     log_info "Waiting for Redis to be ready..."
-    timeout 30 bash -c "
-        while ! docker exec $REDIS_CONTAINER redis-cli ping &> /dev/null; do
-            sleep 1
-        done
-    " || {
-        log_error "Redis failed to start"
-        cleanup_containers
-        exit 1
-    }
+    SECONDS=0
+    until docker exec "$REDIS_CONTAINER" redis-cli ping &> /dev/null; do
+        sleep 1
+        if (( SECONDS > 30 )); then
+            log_error "Redis failed to start within 30s"
+            cleanup_containers
+            exit 1
+        fi
+    done
     
     # Run integration tests
     cd "$PROJECT_ROOT/src/web-client"

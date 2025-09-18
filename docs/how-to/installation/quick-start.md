@@ -16,6 +16,9 @@ Get the Confidential Cat Counter running in under 5 minutes.
 git clone https://github.com/jellywish/confidential-cat-counter.git
 cd confidential-cat-counter
 
+# (Recommended) Fetch a minimal model for local builds
+./scripts/cache-onnx-model.sh
+
 # Run the setup script
 ./setup.sh
 ```

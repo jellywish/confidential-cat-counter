@@ -8,10 +8,15 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import redis.asyncio as redis
+from policy import load_policy_bundle, evaluate_input_policy, evaluate_output_policy, decision_to_dict
+from audit import emit_audit
+from attestation import DevAttestationVerifier, DevKeyReleaseClient, build_dev_evidence
 import cv2
 import numpy as np
 from PIL import Image
 from fastapi import FastAPI, HTTPException
+import socket
+import functools
 from pydantic import BaseModel
 
 # Configure logging
@@ -23,11 +28,32 @@ app = FastAPI(
     description="Confidential Cat Counter ML Processing Service",
     version="1.0.0"
 )
+# Simple egress guard: allowlist localhost and redis container only
+ALLOWED_HOSTS = {"localhost", "127.0.0.1", "redis"}
+
+
+def guard_network(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Best-effort: prevent contacting disallowed hosts via DNS resolution
+        target = kwargs.get('host') or kwargs.get('hostname')
+        if target:
+            try:
+                host = target.split(':')[0]
+                if host not in ALLOWED_HOSTS:
+                    raise PermissionError(f"Egress blocked to host: {host}")
+            except Exception:
+                pass
+        return func(*args, **kwargs)
+    return wrapper
+
 
 # Global variables
 redis_client = None
 model_session = None
 current_model_path = None
+policy_bundle = None
+policy_digest = None
 
 class JobStatus(BaseModel):
     id: str
@@ -262,18 +288,50 @@ async def process_job(job_data: Dict[str, Any]) -> None:
         job_data['processing_started'] = time.time()
         await redis_client.setex(job_key, 3600, json.dumps(job_data))
         
+        # Input policy evaluation
+        input_decision = evaluate_input_policy(job_data, policy_bundle)
+        emit_audit("input_policy_decision", {
+            "job_id": job_id,
+            "decision": decision_to_dict(input_decision),
+            "policy_digest": policy_digest,
+        })
+        if input_decision.action == 'deny':
+            raise PermissionError(f"Input policy denied: {input_decision.reasons}")
+
         # Check if image file exists
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
         
         # Run ML inference
         result = detect_cats(image_path)
+
+        # Normalize result to JSON-serializable primitives before policy evaluation
+        try:
+            if 'cats' in result and hasattr(result['cats'], 'item'):
+                result['cats'] = int(result['cats'])
+            if 'confidence' in result and hasattr(result['confidence'], 'item'):
+                result['confidence'] = float(result['confidence'])
+        except Exception:
+            # Best-effort normalization; continue to policy evaluation
+            pass
         
+        # Output policy evaluation
+        output_decision = evaluate_output_policy(result, policy_bundle)
+        emit_audit("output_policy_decision", {
+            "job_id": job_id,
+            "decision": decision_to_dict(output_decision),
+            "policy_digest": policy_digest,
+        })
+        if output_decision.action == 'deny':
+            raise PermissionError(f"Output policy denied: {output_decision.reasons}")
+        elif output_decision.action == 'redact' and output_decision.redacted_output is not None:
+            result = output_decision.redacted_output
+
         # Update job with results (convert numpy types to Python types)
         job_data.update({
             'status': 'completed',
-            'cats': int(result['cats']) if hasattr(result['cats'], 'item') else result['cats'],
-            'confidence': float(result['confidence']) if hasattr(result['confidence'], 'item') else result['confidence'],
+            'cats': int(result['cats']) if hasattr(result.get('cats'), 'item') else int(result.get('cats', 0)),
+            'confidence': float(result['confidence']) if hasattr(result.get('confidence'), 'item') else float(result.get('confidence', 0.0)),
             'processingTime': result['processing_time'],
             'model': result['model'],
             'completedAt': time.time()
@@ -324,6 +382,21 @@ async def startup():
     # Test Redis connection
     await get_redis_client()
     
+    # Load policy bundle
+    global policy_bundle, policy_digest
+    policy_bundle, policy_digest = load_policy_bundle()
+
+    # Dev attestation: verify and request a data key (simulated flow)
+    if os.getenv('SIMULATED_ATTESTATION', 'true').lower() == 'true':
+        verifier = DevAttestationVerifier(policy_digest)
+        key_client = DevKeyReleaseClient()
+        evidence = build_dev_evidence(policy_digest)
+        ok, reason = verifier.verify(evidence)
+        emit_audit("dev_attestation_verify", {"ok": ok, "reason": reason, "policy_digest": policy_digest})
+        if ok:
+            key_info = key_client.request_data_key(evidence)
+            emit_audit("dev_key_released", {"key_id": key_info.get('key_id'), "algorithm": key_info.get('algorithm')})
+
     # Start background job worker
     asyncio.create_task(job_worker())
     
@@ -361,7 +434,8 @@ async def health():
         "service": "ml-service",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "model_loaded": model_session is not None,
-        "redis_connected": redis_healthy
+        "redis_connected": redis_healthy,
+        "policy_digest": policy_digest
     }
 
 @app.get("/queue/status")

@@ -212,14 +212,18 @@
                 <img id="previewImage" class="preview-image" alt="Preview">
                 <div>
                     <p id="fileName"></p>
-                    <button class="process-button" id="processButton">
-                        🚀 Process Image
-                    </button>
                 </div>
             </div>
         </div>
     </div>
     
+    <!-- Process button moved outside the upload box -->
+    <div style="text-align: center; margin: 0 0 1rem 0;">
+        <button class="process-button" id="processButton" disabled>
+            🚀 Process Image
+        </button>
+    </div>
+
     <div id="results" class="results hidden">
         <h3>📊 Results</h3>
         <div id="resultContent">
@@ -320,6 +324,11 @@
                 filePreview.style.display = 'block';
                 document.getElementById('uploadPrompt').style.display = 'none';
                 document.getElementById('chooseImageBtn').textContent = 'Choose Another Image';
+                // Enable process button now that a file is selected
+                const processButton = document.getElementById('processButton');
+                if (processButton) {
+                    processButton.disabled = false;
+                }
             };
             reader.readAsDataURL(file);
         }
