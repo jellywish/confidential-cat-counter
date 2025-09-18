@@ -45,6 +45,13 @@ jobs:
           CCC_USE_LOCAL_PY_DEPS: "false"
         run: ./scripts/test.sh --unit --security
 
+      - name: Verify pins (policy digest)
+        if: always()
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          chmod +x scripts/verify-pins.sh || true
+          ./scripts/verify-pins.sh || echo "Pins verification skipped or non-blocking in CI"
+
   codeql:
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     permissions:

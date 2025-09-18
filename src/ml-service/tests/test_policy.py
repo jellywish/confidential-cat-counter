@@ -1,5 +1,8 @@
 import json
-from policy import _default_policy_bundle, evaluate_input_policy, evaluate_output_policy
+import os
+import json
+import hashlib
+from policy import _default_policy_bundle, evaluate_input_policy, evaluate_output_policy, load_policy_bundle
 
 
 def test_input_policy_allows_small_file():
@@ -37,4 +40,33 @@ def test_output_policy_redacts_forbidden_pattern():
     out = {"cats": 0, "confidence": 0.1, "processing_time": "ok", "model": "data:image/png;base64,AAAA"}
     d = evaluate_output_policy(out, bundle)
     assert d.action == "redact"
+
+
+def test_policy_signature_verification(tmp_path):
+    # Write a small policy file
+    policy = _default_policy_bundle()
+    p = tmp_path / "policy.json"
+    content = json.dumps(policy, separators=(",", ":")).encode("utf-8")
+    p.write_bytes(content)
+
+    # Correct signature
+    key = "dev-policy-key"
+    sig = hashlib.sha256(key.encode("utf-8") + content).hexdigest()
+    # Our verification does HMAC(key, content), not concat; compute correct HMAC
+    import hmac
+    sig = hmac.new(key.encode("utf-8"), content, hashlib.sha256).hexdigest()
+
+    os.environ["POLICY_BUNDLE_PATH"] = str(p)
+    os.environ["POLICY_BUNDLE_HMAC_KEY"] = key
+    os.environ["POLICY_BUNDLE_SIGNATURE"] = sig
+    bundle, digest = load_policy_bundle()
+    assert bundle["version"] == policy["version"]
+
+    # Tamper signature
+    os.environ["POLICY_BUNDLE_SIGNATURE"] = "deadbeef"
+    try:
+        load_policy_bundle()
+        assert False, "Expected signature verification failure"
+    except ValueError:
+        pass
 

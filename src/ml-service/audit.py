@@ -6,6 +6,7 @@ import time
 from typing import Any, Dict
 
 _SEQ = 0
+_NONCE = os.getenv("AUDIT_NONCE") or hashlib.sha256(os.urandom(16)).hexdigest()[:16]
 
 
 def _get_audit_key() -> bytes:
@@ -27,6 +28,7 @@ def emit_audit(event: str, data: Dict[str, Any]) -> Dict[str, Any]:
         "timestamp": int(time.time()),
         "simulated": os.getenv("SIMULATED_ATTESTATION", "true").lower() == "true",
         "sequence": _SEQ,
+        "nonce": _NONCE,
         **data,
     }
     enriched["signature"] = sign_record(enriched)

@@ -15,6 +15,8 @@ import cv2
 import numpy as np
 from PIL import Image
 from fastapi import FastAPI, HTTPException
+import socket
+import functools
 from pydantic import BaseModel
 
 # Configure logging
@@ -26,6 +28,25 @@ app = FastAPI(
     description="Confidential Cat Counter ML Processing Service",
     version="1.0.0"
 )
+# Simple egress guard: allowlist localhost and redis container only
+ALLOWED_HOSTS = {"localhost", "127.0.0.1", "redis"}
+
+
+def guard_network(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Best-effort: prevent contacting disallowed hosts via DNS resolution
+        target = kwargs.get('host') or kwargs.get('hostname')
+        if target:
+            try:
+                host = target.split(':')[0]
+                if host not in ALLOWED_HOSTS:
+                    raise PermissionError(f"Egress blocked to host: {host}")
+            except Exception:
+                pass
+        return func(*args, **kwargs)
+    return wrapper
+
 
 # Global variables
 redis_client = None

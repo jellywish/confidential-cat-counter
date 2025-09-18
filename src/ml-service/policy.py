@@ -3,6 +3,7 @@ import os
 import hashlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+import hmac
 
 
 @dataclass
@@ -28,12 +29,25 @@ def _sha256_hexdigest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _verify_signature(content: bytes, signature: str, key: str) -> bool:
+    if not signature or not key:
+        return False
+    mac = hmac.new(key.encode("utf-8"), content, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(mac, signature)
+
+
 def load_policy_bundle() -> Tuple[Dict[str, Any], str]:
     """Load policy bundle JSON and return bundle + sha256 digest string."""
     path = os.getenv("POLICY_BUNDLE_PATH", "")
     if path and os.path.exists(path):
         with open(path, "rb") as f:
             content = f.read()
+        # Optional dev signature verification
+        sig = os.getenv("POLICY_BUNDLE_SIGNATURE", "")
+        key = os.getenv("POLICY_BUNDLE_HMAC_KEY", "")
+        if sig and key:
+            if not _verify_signature(content, sig, key):
+                raise ValueError("Policy bundle signature verification failed")
         try:
             bundle = json.loads(content.decode("utf-8"))
         except json.JSONDecodeError:

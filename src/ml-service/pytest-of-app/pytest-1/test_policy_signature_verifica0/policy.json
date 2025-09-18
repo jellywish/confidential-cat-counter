@@ -1,0 +1,1 @@
+{"version":"1.0","max_response_size":2048,"forbidden_patterns":["image/","data:","/9j/","iVBOR"],"min_confidence":0.0,"max_cats":20}
