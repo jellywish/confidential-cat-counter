@@ -8,6 +8,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import redis.asyncio as redis
+from policy import load_policy_bundle, evaluate_input_policy, evaluate_output_policy, decision_to_dict
+from audit import emit_audit
 import cv2
 import numpy as np
 from PIL import Image
@@ -28,6 +30,8 @@ app = FastAPI(
 redis_client = None
 model_session = None
 current_model_path = None
+policy_bundle = None
+policy_digest = None
 
 class JobStatus(BaseModel):
     id: str
@@ -262,6 +266,16 @@ async def process_job(job_data: Dict[str, Any]) -> None:
         job_data['processing_started'] = time.time()
         await redis_client.setex(job_key, 3600, json.dumps(job_data))
         
+        # Input policy evaluation
+        input_decision = evaluate_input_policy(job_data, policy_bundle)
+        emit_audit("input_policy_decision", {
+            "job_id": job_id,
+            "decision": decision_to_dict(input_decision),
+            "policy_digest": policy_digest,
+        })
+        if input_decision.action == 'deny':
+            raise PermissionError(f"Input policy denied: {input_decision.reasons}")
+
         # Check if image file exists
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image file not found: {image_path}")
@@ -269,6 +283,18 @@ async def process_job(job_data: Dict[str, Any]) -> None:
         # Run ML inference
         result = detect_cats(image_path)
         
+        # Output policy evaluation
+        output_decision = evaluate_output_policy(result, policy_bundle)
+        emit_audit("output_policy_decision", {
+            "job_id": job_id,
+            "decision": decision_to_dict(output_decision),
+            "policy_digest": policy_digest,
+        })
+        if output_decision.action == 'deny':
+            raise PermissionError(f"Output policy denied: {output_decision.reasons}")
+        elif output_decision.action == 'redact' and output_decision.redacted_output is not None:
+            result = output_decision.redacted_output
+
         # Update job with results (convert numpy types to Python types)
         job_data.update({
             'status': 'completed',
@@ -324,6 +350,10 @@ async def startup():
     # Test Redis connection
     await get_redis_client()
     
+    # Load policy bundle
+    global policy_bundle, policy_digest
+    policy_bundle, policy_digest = load_policy_bundle()
+
     # Start background job worker
     asyncio.create_task(job_worker())
     
@@ -361,7 +391,8 @@ async def health():
         "service": "ml-service",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "model_loaded": model_session is not None,
-        "redis_connected": redis_healthy
+        "redis_connected": redis_healthy,
+        "policy_digest": policy_digest
     }
 
 @app.get("/queue/status")

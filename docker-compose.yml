@@ -9,9 +9,15 @@ services:
       - REDIS_URL=redis://redis:6379
       - ML_SERVICE_URL=http://ml-service:8000
       - NODE_ENV=development
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     volumes:
-      - ./data/uploads:/app/uploads
-      - ./src/web-client:/app
+      - uploads:/app/uploads
+      - results:/app/results
+      - ./src/web-client:/app:rw
       - /app/node_modules
     depends_on:
       - redis
@@ -26,11 +32,19 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - PYTHONPATH=/app
+      - SIMULATED_ATTESTATION=true
+      - POLICY_BUNDLE_PATH=
+      - AUDIT_HMAC_KEY=dev-local-hmac-key
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     volumes:
-      - ./src/ml-service/models:/app/models
-      - ./data/uploads:/app/uploads
-      - ./data/results:/app/results
-      - ./src/ml-service:/app
+      - ./src/ml-service/models:/app/models:ro
+      - uploads:/app/uploads
+      - results:/app/results
+      - ./src/ml-service:/app:rw
     depends_on:
       - redis
     restart: unless-stopped
@@ -47,3 +61,5 @@ services:
 
 volumes:
   redis-data:
+  uploads:
+  results:
