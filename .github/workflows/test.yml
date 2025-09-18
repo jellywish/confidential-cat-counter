@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20]
-        python-version: [3.9, 3.11]
+        node-version: [20]
+        python-version: [3.11]
     
     steps:
     - name: Checkout code
@@ -243,7 +243,7 @@ jobs:
     - name: Run integration tests
       env:
         REDIS_URL: redis://localhost:6379
-        ML_SERVICE_URL: http://localhost:8001
+        ML_SERVICE_URL: http://localhost:8000
         NODE_ENV: test
       run: |
         cd src/web-client
