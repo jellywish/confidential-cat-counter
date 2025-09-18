@@ -5,6 +5,8 @@ import os
 import time
 from typing import Any, Dict
 
+_SEQ = 0
+
 
 def _get_audit_key() -> bytes:
     key = os.getenv("AUDIT_HMAC_KEY", "dev-local-hmac-key")
@@ -17,11 +19,14 @@ def sign_record(record: Dict[str, Any]) -> str:
 
 
 def emit_audit(event: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    global _SEQ
+    _SEQ += 1
     # Enrich with common fields
     enriched = {
         "event": event,
         "timestamp": int(time.time()),
         "simulated": os.getenv("SIMULATED_ATTESTATION", "true").lower() == "true",
+        "sequence": _SEQ,
         **data,
     }
     enriched["signature"] = sign_record(enriched)

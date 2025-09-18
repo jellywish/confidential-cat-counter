@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import redis.asyncio as redis
 from policy import load_policy_bundle, evaluate_input_policy, evaluate_output_policy, decision_to_dict
 from audit import emit_audit
+from attestation import DevAttestationVerifier, DevKeyReleaseClient, build_dev_evidence
 import cv2
 import numpy as np
 from PIL import Image
@@ -363,6 +364,17 @@ async def startup():
     # Load policy bundle
     global policy_bundle, policy_digest
     policy_bundle, policy_digest = load_policy_bundle()
+
+    # Dev attestation: verify and request a data key (simulated flow)
+    if os.getenv('SIMULATED_ATTESTATION', 'true').lower() == 'true':
+        verifier = DevAttestationVerifier(policy_digest)
+        key_client = DevKeyReleaseClient()
+        evidence = build_dev_evidence(policy_digest)
+        ok, reason = verifier.verify(evidence)
+        emit_audit("dev_attestation_verify", {"ok": ok, "reason": reason, "policy_digest": policy_digest})
+        if ok:
+            key_info = key_client.request_data_key(evidence)
+            emit_audit("dev_key_released", {"key_id": key_info.get('key_id'), "algorithm": key_info.get('algorithm')})
 
     # Start background job worker
     asyncio.create_task(job_worker())
